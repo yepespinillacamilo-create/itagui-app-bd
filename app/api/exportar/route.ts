@@ -1,33 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 
 export async function GET(req: NextRequest) {
   try {
-    const db = getDb();
+    const sb = getSupabase();
     const { searchParams } = new URL(req.url);
     const fecha = searchParams.get('fecha');
 
     if (fecha) {
-      const sesionRes = await db.execute({ sql: 'SELECT * FROM sesiones WHERE fecha = ?', args: [fecha] });
-      if (sesionRes.rows.length === 0) return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 });
-      const sesion = sesionRes.rows[0];
+      const { data: sesiones } = await sb.from('sesiones').select('*').eq('fecha', fecha);
+      if (!sesiones?.length) return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 });
+      const sesion = sesiones[0];
 
-      const rows = await db.execute({
-        sql: `SELECT e.nombre, e.cedula, e.celular,
-                CASE WHEN a.asistio = 1 THEN 'Asistió' ELSE 'No asistió' END as asistencia,
-                a.registrado_en
-              FROM asistencias a
-              JOIN estudiantes e ON e.id = a.estudiante_id
-              WHERE a.sesion_id = ?
-              ORDER BY e.nombre ASC`,
-        args: [sesion.id],
-      });
+      const { data: rows } = await sb.from('asistencias')
+        .select('asistio, registrado_en, estudiantes(nombre, cedula, celular)')
+        .eq('sesion_id', sesion.id);
 
       const wb = XLSX.utils.book_new();
       const wsData = [
         ['Nombre', 'Cédula', 'Celular', 'Asistencia', 'Registrado'],
-        ...rows.rows.map((r) => [r.nombre, r.cedula, r.celular || '', r.asistencia, r.registrado_en]),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(rows ?? []).map((r: any) => [
+          r.estudiantes?.nombre ?? '',
+          r.estudiantes?.cedula ?? '',
+          r.estudiantes?.celular ?? '',
+          r.asistio === 1 ? 'Asistió' : 'No asistió',
+          r.registrado_en ?? '',
+        ]),
       ];
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       XLSX.utils.book_append_sheet(wb, ws, `Asistencia ${fecha}`);
@@ -41,28 +41,28 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const sesiones = await db.execute(`
-      SELECT s.fecha, s.descripcion,
-        COUNT(a.id) as total,
-        SUM(a.asistio) as asistieron,
-        COUNT(a.id) - SUM(a.asistio) as ausentes
-      FROM sesiones s
-      LEFT JOIN asistencias a ON a.sesion_id = s.id
-      GROUP BY s.id
-      ORDER BY s.fecha DESC
-    `);
+    const { data: sesionesData } = await sb.from('sesiones').select('id, fecha, descripcion').order('fecha', { ascending: false });
+    const sesionIds = (sesionesData ?? []).map((s: any) => s.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const asistMap: Record<number, { total: number; asistieron: number }> = {};
+    if (sesionIds.length > 0) {
+      const { data: asistencias } = await sb.from('asistencias').select('sesion_id, asistio').in('sesion_id', sesionIds);
+      for (const a of asistencias ?? []) {
+        if (!asistMap[a.sesion_id]) asistMap[a.sesion_id] = { total: 0, asistieron: 0 };
+        asistMap[a.sesion_id].total++;
+        if (a.asistio === 1) asistMap[a.sesion_id].asistieron++;
+      }
+    }
 
     const wb = XLSX.utils.book_new();
     const wsData = [
       ['Fecha', 'Descripción', 'Total', 'Asistieron', 'Ausentes', '% Asistencia'],
-      ...sesiones.rows.map((s) => [
-        s.fecha,
-        s.descripcion || '',
-        s.total,
-        s.asistieron,
-        s.ausentes,
-        Number(s.total) > 0 ? `${Math.round((Number(s.asistieron) / Number(s.total)) * 100)}%` : '0%',
-      ]),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(sesionesData ?? []).map((s: any) => {
+        const m = asistMap[s.id] ?? { total: 0, asistieron: 0 };
+        return [s.fecha, s.descripcion ?? '', m.total, m.asistieron, m.total - m.asistieron,
+          m.total > 0 ? `${Math.round((m.asistieron / m.total) * 100)}%` : '0%'];
+      }),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     XLSX.utils.book_append_sheet(wb, ws, 'Historial');

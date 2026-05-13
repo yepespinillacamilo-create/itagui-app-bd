@@ -43,6 +43,7 @@ interface Colaborador {
   fecha_espiritu: string | null;
   fecha_profecia: string | null;
   observaciones: string | null;
+  dia_profecia: string[];
   activo: number;
 }
 
@@ -53,6 +54,7 @@ const EMPTY_FORM = {
   mira: [] as string[], fimlm: [] as string[],
   fecha_inicio: '', fecha_espiritu: '', fecha_profecia: '',
   observaciones: '',
+  dia_profecia: [] as string[],
 };
 
 type FiltroTab = 'todos' | 'dones' | 'labores' | 'mira' | 'fimlm' | 'horario';
@@ -187,6 +189,7 @@ export default function ColaboradoresPage() {
       fecha_espiritu: col.fecha_espiritu  || '',
       fecha_profecia: col.fecha_profecia  || '',
       observaciones:  col.observaciones   || '',
+      dia_profecia:   Array.isArray(col.dia_profecia) ? col.dia_profecia : [],
     });
     setErrorModal('');
     setModal('editar');
@@ -395,6 +398,9 @@ export default function ColaboradoresPage() {
                       {/* Badges por categoría con colores */}
                       <div className="flex gap-1 mt-1.5 flex-wrap">
                         {col.dones?.slice(0,2).map((d) => <Badge key={d} label={d} color="#C8A24A" />)}
+                        {col.dones?.includes('Profecía') && (col.dia_profecia?.length ?? 0) > 0 && (
+                          <Badge label={col.dia_profecia.map((d: string) => d.slice(0,3)).join(' · ')} color="#7C3AED" />
+                        )}
                         {col.labores?.slice(0,2).map((l) => <Badge key={l} label={l} color="#7C3AED" />)}
                         {(col.labores?.length ?? 0) > 2 && (
                           <Badge label={`+${col.labores.length - 2} labores`} color="#7C3AED" />
@@ -465,6 +471,22 @@ export default function ColaboradoresPage() {
                           </div>
                         </div>
                       ))}
+                      {col.dones?.includes('Profecía') && (col.dia_profecia?.length ?? 0) > 0 && (
+                        <div className="mt-2 p-2 rounded-xl" style={{ backgroundColor: '#F5F3FF' }}>
+                          <p className="text-xs font-bold mb-1.5" style={{ color: '#7C3AED' }}>📅 Días que profetiza</p>
+                          <div className="flex gap-2">
+                            {['Lunes','Miércoles','Viernes'].map((dia) => (
+                              <span key={dia}
+                                className="px-3 py-1 rounded-full text-xs font-semibold"
+                                style={col.dia_profecia?.includes(dia)
+                                  ? { backgroundColor: '#7C3AED', color: '#fff' }
+                                  : { backgroundColor: '#E9D5FF', color: '#6D28D9' }}>
+                                {dia}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {col.observaciones && (
                         <div className="mt-3 p-2 rounded-lg text-xs" style={{ backgroundColor: '#FEF9EC', color: '#92400E' }}>
                           <strong>Obs:</strong> {col.observaciones}
@@ -599,6 +621,35 @@ export default function ColaboradoresPage() {
                 <CheckGroup title="" items={DONES} selected={form.dones}
                   onChange={(v) => setForm((f) => ({ ...f, dones: v }))} />
               </section>
+
+              {/* Días de profecía — solo si tiene el don */}
+              {form.dones.includes('Profecía') && (
+                <section>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#7C3AED' }}>
+                    📅 Días que profetiza
+                  </p>
+                  <div className="flex gap-3">
+                    {['Lunes', 'Miércoles', 'Viernes'].map((dia) => {
+                      const activo = form.dia_profecia.includes(dia);
+                      return (
+                        <button key={dia} type="button"
+                          onClick={() => setForm((f) => ({
+                            ...f,
+                            dia_profecia: activo
+                              ? f.dia_profecia.filter((d) => d !== dia)
+                              : [...f.dia_profecia, dia],
+                          }))}
+                          className="flex-1 py-2 rounded-xl text-sm font-semibold border transition-all"
+                          style={activo
+                            ? { backgroundColor: '#7C3AED', color: '#fff', borderColor: '#7C3AED' }
+                            : { backgroundColor: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                          {dia}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
 
               {/* Labores */}
               <section>

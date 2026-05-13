@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const sb = getSupabase();
     const body = await req.json();
     const { nombre, cedula, celular, email, horario, foto, dones, labores, mira, fimlm,
-            fecha_inicio, fecha_espiritu, fecha_profecia, observaciones } = body;
+            fecha_inicio, fecha_espiritu, fecha_profecia, observaciones, dia_profecia } = body;
 
     if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
 
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       fecha_espiritu: fecha_espiritu || null,
       fecha_profecia: fecha_profecia || null,
       observaciones: observaciones?.trim() || null,
+      dia_profecia: Array.isArray(dia_profecia) ? dia_profecia : [],
     }).select().single();
 
     if (error) throw error;
@@ -105,7 +106,7 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const { nombre, cedula, celular, email, horario, foto, dones, labores, mira, fimlm,
-            fecha_inicio, fecha_espiritu, fecha_profecia, observaciones, activo } = body;
+            fecha_inicio, fecha_espiritu, fecha_profecia, observaciones, activo, dia_profecia } = body;
 
     if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
 
@@ -126,6 +127,7 @@ export async function PUT(req: NextRequest) {
       fecha_espiritu: fecha_espiritu || null,
       fecha_profecia: fecha_profecia || null,
       observaciones: observaciones?.trim() || null,
+      dia_profecia: Array.isArray(dia_profecia) ? dia_profecia : [],
       activo: activo !== undefined ? activo : 1,
     }).eq('id', Number(id)).select().single();
 

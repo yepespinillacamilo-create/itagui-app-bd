@@ -21,26 +21,47 @@ export default function Dashboard() {
     totalColaboradores: 0, imposicionManos: 0, profecia: 0,
     enMira: 0, enFimlm: 0, ultimaSesion: null, totalEstudiantes: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
+  const [filtroHorario, setFiltroHorario] = useState('');
+  const [todos, setTodos]             = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(d => {
-      setStats({ totalColaboradores: d.totalColaboradores ?? 0, imposicionManos: d.imposicionManos ?? 0,
-        profecia: d.profecia ?? 0, enMira: d.enMira ?? 0, enFimlm: d.enFimlm ?? 0,
-        ultimaSesion: d.ultimaSesion ?? null, totalEstudiantes: d.totalEstudiantes ?? 0 });
+      setStats({
+        totalColaboradores: d.totalColaboradores ?? 0,
+        imposicionManos:    d.imposicionManos    ?? 0,
+        profecia:           d.profecia           ?? 0,
+        enMira:             d.enMira             ?? 0,
+        enFimlm:            d.enFimlm            ?? 0,
+        ultimaSesion:       d.ultimaSesion       ?? null,
+        totalEstudiantes:   d.totalEstudiantes   ?? 0,
+      });
     }).catch(console.error).finally(() => setLoading(false));
+
+    // Cargar colaboradores para filtro por horario en dashboard
+    fetch('/api/colaboradores').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setTodos(d);
+    }).catch(console.error);
   }, []);
+
+  // Calcular stats filtradas por horario
+  const lista = filtroHorario ? todos.filter((c: any) => c.horario === filtroHorario) : todos;
+  const total        = filtroHorario ? lista.length : stats.totalColaboradores;
+  const imposicion   = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Imposición de Manos')).length : stats.imposicionManos;
+  const profeciaNum  = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Profecía')).length            : stats.profecia;
+  const miraNum      = filtroHorario ? lista.filter((c: any) => (c.mira?.length  ?? 0) > 0).length              : stats.enMira;
+  const fimlmNum     = filtroHorario ? lista.filter((c: any) => (c.fimlm?.length ?? 0) > 0).length              : stats.enFimlm;
 
   const pct = stats.ultimaSesion && stats.ultimaSesion.total_registros > 0
     ? Math.round((stats.ultimaSesion.total_asistieron / stats.ultimaSesion.total_registros) * 100) : 0;
 
   const cards = [
-    { icon: Users,     valor: stats.totalColaboradores, label: 'Colaboradores',        iconBg: '#EFF6FF', iconColor: '#2563EB', href: '/colaboradores' },
-    { icon: UserCheck, valor: stats.imposicionManos,    label: 'Imposición de manos',  iconBg: '#FEF9EC', iconColor: '#C8A24A', href: '/colaboradores?don=Imposición+de+Manos' },
-    { icon: UserCog,   valor: stats.profecia,           label: 'Profecía',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores?don=Profecía' },
-    { icon: Shield,    valor: stats.enMira,             label: 'En MIRA',              iconBg: '#EFF6FF', iconColor: '#2563EB', href: '/colaboradores?filtroTab=mira' },
-    { icon: Shield,    valor: stats.enFimlm,            label: 'En FIMLM',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores?filtroTab=fimlm' },
-    { icon: BarChart2, valor: stats.totalEstudiantes,   label: 'Estudiantes Instituto',iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/instituto' },
+    { icon: Users,     valor: total,       label: 'Colaboradores',        iconBg: '#EFF6FF', iconColor: '#2563EB', href: `/colaboradores` },
+    { icon: UserCheck, valor: imposicion,  label: 'Imposición de manos',  iconBg: '#FEF9EC', iconColor: '#C8A24A', href: '/colaboradores' },
+    { icon: UserCog,   valor: profeciaNum, label: 'Profecía',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
+    { icon: Shield,    valor: miraNum,     label: 'En MIRA',              iconBg: '#EFF6FF', iconColor: '#2563EB', href: '/colaboradores' },
+    { icon: Shield,    valor: fimlmNum,    label: 'En FIMLM',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
+    { icon: BarChart2, valor: stats.totalEstudiantes, label: 'Estudiantes Instituto', iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/instituto' },
   ];
 
   return (
@@ -49,18 +70,34 @@ export default function Dashboard() {
       <main className="max-w-6xl mx-auto px-4 py-8">
 
         {/* Hero */}
-        <div className="rounded-2xl overflow-hidden mb-8 shadow-md"
+        <div className="rounded-2xl overflow-hidden mb-6 shadow-md"
           style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1e4db7 60%, #2563EB 100%)' }}>
-          <div className="flex flex-col sm:flex-row items-center gap-6 px-8 py-7">
-            <div className="flex-1">
-              <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#C8A24A' }}>
-                Itagüí · IDMJI
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
-                Gestión de Colaboradores
-              </h1>
-            </div>
+          <div className="px-8 py-7">
+            <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#C8A24A' }}>
+              Itagüí · IDMJI
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+              Gestión de Colaboradores
+            </h1>
           </div>
+        </div>
+
+        {/* Selector de horario en dashboard */}
+        <div className="flex gap-2 mb-6 p-1 rounded-2xl" style={{ backgroundColor: '#E5E7EB' }}>
+          {[
+            { val: '',        label: 'Todos los cultos' },
+            { val: '7:00 AM', label: '☀️  7:00 AM' },
+            { val: '6:30 PM', label: '🌙  6:30 PM' },
+          ].map(({ val, label }) => (
+            <button key={val}
+              onClick={() => setFiltroHorario(val)}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={filtroHorario === val
+                ? { backgroundColor: '#1E3A8A', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+                : { backgroundColor: 'transparent', color: '#6B7280' }}>
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Stats */}
@@ -111,7 +148,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Acciones rápidas */}
+        {/* Accesos rápidos */}
         <div className="grid md:grid-cols-2 gap-5">
           <Link href="/instituto"
             className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-0.5">

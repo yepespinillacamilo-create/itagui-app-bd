@@ -54,7 +54,7 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row items-center gap-6 px-8 py-7">
             <div className="flex-1">
               <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#C8A24A' }}>
-                San Diego · 5 PM · IDMJI
+                Itagüí · IDMJI
               </p>
               <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
                 Gestión de Colaboradores

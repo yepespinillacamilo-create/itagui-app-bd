@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/Navbar';
+import * as XLSX from 'xlsx';
 import Image from 'next/image';
 import {
   User, UserPlus, Search, Edit2, Trash2, X, Camera,
@@ -105,8 +106,9 @@ export default function ColaboradoresPage() {
   const [todos, setTodos]       = useState<Colaborador[]>([]);
   const [cargando, setCargando] = useState(true);
   const [buscar, setBuscar]     = useState('');
-  const [filtroTab, setFiltroTab]     = useState<FiltroTab>('todos');
-  const [filtroValor, setFiltroValor] = useState('');
+  const [filtroHorario, setFiltroHorario] = useState('');
+  const [filtroTab, setFiltroTab]         = useState<FiltroTab>('todos');
+  const [filtroValor, setFiltroValor]     = useState('');
 
   const [modal, setModal]         = useState<'nuevo' | 'editar' | null>(null);
   const [editando, setEditando]   = useState<Colaborador | null>(null);
@@ -261,6 +263,35 @@ export default function ColaboradoresPage() {
   }
 
   // ── Sub-filtros según tab activo ─────────────────────────
+  // ── Exportar a Excel ────────────────────────────────────────
+  function exportarExcel() {
+    const titulo = filtroHorario ? `Colaboradores ${filtroHorario}` : 'Todos los Colaboradores';
+    const rows = colaboradores.map((c) => ({
+      'Nombre':            c.nombre,
+      'Cédula':            c.cedula            || '',
+      'Celular':           c.celular           || '',
+      'Email':             c.email             || '',
+      'Horario Culto':     c.horario           || '',
+      'Dones':             c.dones?.join(', ')        || '',
+      'Labores':           c.labores?.join(', ')      || '',
+      'Días Profecía':     c.dia_profecia?.join(', ') || '',
+      'MIRA':              c.mira?.join(', ')         || '',
+      'FIMLM':             c.fimlm?.join(', ')        || '',
+      'Fecha Inicio':      c.fecha_inicio      || '',
+      'Bautismo Espíritu': c.fecha_espiritu    || '',
+      'Autorización Profecía': c.fecha_profecia || '',
+      'Observaciones':     c.observaciones     || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Ancho de columnas automático
+    const cols = Object.keys(rows[0] || {}).map((k) => ({ wch: Math.max(k.length, 14) }));
+    ws['!cols'] = cols;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, titulo.slice(0, 31));
+    const fecha = new Date().toLocaleDateString('es-CO').replace(/\//g, '-');
+    XLSX.writeFile(wb, `colaboradores-itagui-${fecha}.xlsx`);
+  }
+
   const filtrosDisponibles: string[] =
     filtroTab === 'dones'   ? DONES    :
     filtroTab === 'labores' ? LABORES  :
@@ -283,19 +314,51 @@ export default function ColaboradoresPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
 
+        {/* Selector principal de horario */}
+        <div className="flex gap-2 mb-4 p-1 rounded-2xl" style={{ backgroundColor: '#E5E7EB' }}>
+          {[
+            { val: '',        label: 'Todos los cultos' },
+            { val: '7:00 AM', label: '☀️  7:00 AM' },
+            { val: '6:30 PM', label: '🌙  6:30 PM' },
+          ].map(({ val, label }) => (
+            <button key={val}
+              onClick={() => setFiltroHorario(val)}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={filtroHorario === val
+                ? { backgroundColor: '#1E3A8A', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+                : { backgroundColor: 'transparent', color: '#6B7280' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-xl font-bold" style={{ color: '#1F2937' }}>Colaboradores</h1>
             <p className="text-sm" style={{ color: '#6B7280' }}>
               {cargando ? '...' : `${colaboradores.length} resultado${colaboradores.length !== 1 ? 's' : ''}`}
+              {filtroHorario && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>Culto {filtroHorario}</span>}
             </p>
           </div>
-          <button onClick={abrirNuevo}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold shadow-sm"
-            style={{ backgroundColor: '#1E3A8A' }}>
-            <UserPlus size={16} /> Nuevo
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportarExcel}
+              disabled={colaboradores.length === 0}
+              title="Descargar Excel"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors"
+              style={{ borderColor: '#D1D5DB', color: '#374151', backgroundColor: '#fff' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/>
+              </svg>
+              Excel
+            </button>
+            <button onClick={abrirNuevo}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold shadow-sm"
+              style={{ backgroundColor: '#1E3A8A' }}>
+              <UserPlus size={16} /> Nuevo
+            </button>
+          </div>
         </div>
 
         {/* Buscador */}

@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [loading, setLoading]         = useState(true);
   const [filtroHorario, setFiltroHorario] = useState('');
   const [todos, setTodos]             = useState<any[]>([]);
+  const [estudiantes, setEstudiantes] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(d => {
@@ -38,15 +39,22 @@ export default function Dashboard() {
       });
     }).catch(console.error).finally(() => setLoading(false));
 
-    // Cargar colaboradores para filtro por horario en dashboard
+    // Cargar colaboradores y estudiantes para filtro por horario
     fetch('/api/colaboradores').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setTodos(d);
+    }).catch(console.error);
+
+    fetch('/api/estudiantes').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setEstudiantes(d);
     }).catch(console.error);
   }, []);
 
   // Calcular stats filtradas por horario
   const lista = filtroHorario ? todos.filter((c: any) => c.horario === filtroHorario) : todos;
   const total        = filtroHorario ? lista.length : stats.totalColaboradores;
+  const totalEst     = filtroHorario
+    ? estudiantes.filter((e: any) => e.horario === filtroHorario && e.activo === 1).length
+    : stats.totalEstudiantes;
   const imposicion   = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Imposición de Manos')).length : stats.imposicionManos;
   const profeciaNum  = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Profecía')).length            : stats.profecia;
   const miraNum      = filtroHorario ? lista.filter((c: any) => (c.mira?.length  ?? 0) > 0).length              : stats.enMira;
@@ -61,7 +69,7 @@ export default function Dashboard() {
     { icon: UserCog,   valor: profeciaNum, label: 'Profecía',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
     { icon: Shield,    valor: miraNum,     label: 'En MIRA',              iconBg: '#EFF6FF', iconColor: '#2563EB', href: '/colaboradores' },
     { icon: Shield,    valor: fimlmNum,    label: 'En FIMLM',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
-    { icon: BarChart2, valor: stats.totalEstudiantes, label: 'Estudiantes Instituto', iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/instituto' },
+    { icon: BarChart2, valor: totalEst,               label: 'Estudiantes Instituto', iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/instituto' },
   ];
 
   return (

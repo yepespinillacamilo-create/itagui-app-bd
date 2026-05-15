@@ -91,9 +91,11 @@ export async function POST(req: NextRequest) {
       .select().single();
     if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
 
-    // 2. Traer estudiantes activos
-    const { data: estudiantes } = await sb
-      .from('estudiantes').select('id').eq('activo', 1).order('orden').order('nombre');
+    // 2. Traer estudiantes activos (filtrar por horario si se especifica)
+    const { horario_filtro } = body;
+    let estudiantesQuery = sb.from('estudiantes').select('id').eq('activo', 1).order('orden').order('nombre');
+    if (horario_filtro) estudiantesQuery = estudiantesQuery.eq('horario', horario_filtro);
+    const { data: estudiantes } = await estudiantesQuery;
 
     // 3. Crear asistencia pendiente (0) para cada uno
     if (estudiantes?.length) {

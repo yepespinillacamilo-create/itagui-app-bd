@@ -22,8 +22,8 @@ export async function GET() {
       if (fimlm.length > 0)                      enFimlm++;
     }
 
-    const { count: totalEstudiantes } = await sb
-      .from('estudiantes').select('*', { count: 'exact', head: true }).eq('activo', 1);
+    const { data: estData } = await sb.from('estudiantes').select('activo');
+    const totalEstudiantes = (estData ?? []).filter((e: any) => e.activo === 1).length;
 
     const { data: ultimaSesionData } = await sb
       .from('sesiones').select('id, fecha, descripcion')

@@ -36,6 +36,7 @@ interface Estudiante {
   activo: number;
   total_asistencias: number;
   total_faltas: number;
+  horario?: string;
 }
 
 interface FormEst {
@@ -82,6 +83,7 @@ export default function InstitutoPage() {
   const [guardando, setGuardando] = useState(false);
 
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
+  const [filtroHorario, setFiltroHorario] = useState('');
   const [buscar, setBuscar] = useState('');
   const [cargandoEst, setCargandoEst] = useState(true);
   const [modal, setModal] = useState<'nuevo' | 'editar' | null>(null);
@@ -188,7 +190,7 @@ export default function InstitutoPage() {
       const res = await fetch('/api/asistencias', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha, descripcion }),
+        body: JSON.stringify({ fecha, descripcion, horario_filtro: filtroHorario || null }),
       });
       const s: Sesion = await res.json();
       setSesion(s);
@@ -772,6 +774,26 @@ export default function InstitutoPage() {
           {tabs}
           {seccionTab === 'asistencia' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              {/* Selector de horario del culto */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: '#1F2937' }}>Culto</label>
+                <div className="flex gap-2 p-1 rounded-xl" style={{ backgroundColor: '#F3F4F6' }}>
+                  {[
+                    { val: '',        label: 'Todos'    },
+                    { val: '7:00 AM', label: '☀️ 7:00 AM' },
+                    { val: '6:30 PM', label: '🌙 6:30 PM' },
+                  ].map(({ val, label }) => (
+                    <button key={val} type="button"
+                      onClick={() => setFiltroHorario(val)}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                      style={filtroHorario === val
+                        ? { backgroundColor: '#1E3A8A', color: '#fff' }
+                        : { backgroundColor: 'transparent', color: '#6B7280' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: '#1F2937' }}>Fecha</label>
                 <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}

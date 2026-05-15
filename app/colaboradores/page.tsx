@@ -58,7 +58,7 @@ const EMPTY_FORM = {
   dia_profecia: [] as string[],
 };
 
-type FiltroTab = 'todos' | 'dones' | 'labores' | 'mira' | 'fimlm' | 'horario' | 'dias';
+type FiltroTab = 'todos' | 'dones' | 'labores' | 'mira' | 'fimlm' | 'dias';
 
 // ── Helpers ──────────────────────────────────────────────────
 function toggle(arr: string[], val: string): string[] {
@@ -153,7 +153,6 @@ export default function ColaboradoresPage() {
       if (filtroTab === 'labores') lista = lista.filter((c) => c.labores?.includes(filtroValor));
       if (filtroTab === 'mira')    lista = lista.filter((c) => c.mira?.includes(filtroValor));
       if (filtroTab === 'fimlm')   lista = lista.filter((c) => c.fimlm?.includes(filtroValor));
-      if (filtroTab === 'horario') lista = lista.filter((c) => c.horario === filtroValor);
       if (filtroTab === 'dias')    lista = lista.filter((c) => c.dia_profecia?.includes(filtroValor));
     } else {
       if (filtroTab === 'mira')  lista = lista.filter((c) => (c.mira?.length  ?? 0) > 0);
@@ -297,8 +296,7 @@ export default function ColaboradoresPage() {
     filtroTab === 'labores' ? LABORES  :
     filtroTab === 'mira'    ? MIRA_ROLES :
     filtroTab === 'fimlm'   ? FIMLM_ROLES :
-    filtroTab === 'horario' ? ['7:00 AM', '6:30 PM'] :
-    filtroTab === 'dias'    ? ['Lunes', 'Miércoles', 'Viernes'] : [];
+    filtroTab === 'dias' ? ['Lunes', 'Miércoles', 'Viernes'] : [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
@@ -379,7 +377,6 @@ export default function ColaboradoresPage() {
             { key: 'todos',   label: 'Todos'   },
             { key: 'dones',   label: 'Dones'   },
             { key: 'labores', label: 'Labores' },
-            { key: 'horario', label: 'Horario' },
             { key: 'mira',    label: 'MIRA'    },
             { key: 'fimlm',   label: 'FIMLM'   },
             { key: 'dias',    label: '📅 Días'  },

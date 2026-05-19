@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Instituto Bíblico - Asistencia",
-  description: "Sistema de gestión de asistencia para el Instituto Bíblico",
+  title: "Itagüí · BD Colaboradores",
+  description: "Base de datos de colaboradores — Iglesia Itagüí IDMJI",
+  openGraph: {
+    title: "Itagüí · BD Colaboradores",
+    description: "Base de datos de colaboradores — Iglesia Itagüí IDMJI",
+    siteName: "Itagüí IDMJI",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

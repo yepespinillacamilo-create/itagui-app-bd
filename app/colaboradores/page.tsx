@@ -18,6 +18,7 @@ const LABORES = [
   'Sonido', 'Cámaras', 'Vigilancia', 'Baños',
   'Casilleros', 'Apoyo Ofrenda', 'Fundas',
   'Ofrenda Interno', 'Ofrenda Organización',
+  'Llaves', 'Testimonio',
 ];
 const MIRA_ROLES = [
   'Del. Político', 'Del. Comunicaciones', 'InfoMIRA',

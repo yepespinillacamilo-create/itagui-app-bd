@@ -25,7 +25,7 @@ const MIRA_ROLES = [
   'Del. Electoral', 'Del. Ideológico',
 ];
 const FIMLM_ROLES = [
-  'Cord. Logística', 'Coord. Gestión', 'Cord. Adm y Fcro', 'Campus',
+  'Cord. Logística', 'Coord. Gestión', 'Cord. Adm y Fcro', 'Campus', 'Otra',
 ];
 
 // ── Tipos ────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ export default function ColaboradoresPage() {
     filtroTab === 'labores' ? LABORES  :
     filtroTab === 'mira'    ? MIRA_ROLES :
     filtroTab === 'fimlm'   ? FIMLM_ROLES :
-    filtroTab === 'dias' ? ['Lunes', 'Miércoles', 'Viernes'] : [];
+    filtroTab === 'dias' ? ['Lunes', 'Miércoles', 'Viernes', 'Según disponibilidad'] : [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
@@ -541,7 +541,7 @@ export default function ColaboradoresPage() {
                         <div className="mt-2 p-2 rounded-xl" style={{ backgroundColor: '#F5F3FF' }}>
                           <p className="text-xs font-bold mb-1.5" style={{ color: '#7C3AED' }}>📅 Días que profetiza</p>
                           <div className="flex gap-2">
-                            {['Lunes','Miércoles','Viernes'].map((dia) => (
+                            {['Lunes','Miércoles','Viernes','Según disponibilidad'].map((dia) => (
                               <span key={dia}
                                 className="px-3 py-1 rounded-full text-xs font-semibold"
                                 style={col.dia_profecia?.includes(dia)
@@ -695,7 +695,7 @@ export default function ColaboradoresPage() {
                     📅 Días que profetiza
                   </p>
                   <div className="flex gap-3">
-                    {['Lunes', 'Miércoles', 'Viernes'].map((dia) => {
+                    {['Lunes', 'Miércoles', 'Viernes', 'Según disponibilidad'].map((dia) => {
                       const activo = form.dia_profecia.includes(dia);
                       return (
                         <button key={dia} type="button"

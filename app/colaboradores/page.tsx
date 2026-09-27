@@ -1,32 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import * as XLSX from 'xlsx';
 import Image from 'next/image';
 import {
-  User, UserPlus, Search, Edit2, Trash2, X, Camera,
+  User, UserPlus, Search, Edit2, Trash2, X,
   Shield, Heart, Music, ChevronDown, ChevronUp,
 } from 'lucide-react';
+// ── Catálogos compartidos (coinciden con el CEMP) ──────────
+import { DONES, LABORES, MIRA_ROLES, FIMLM_ROLES, DIAS_PROFECIA, ESTADO_CEMP_INFO, estadoCemp, fechaCorta, type EstadoCemp } from '@/lib/catalogos';
+import FotoInput from '@/components/FotoInput';
+import Link from 'next/link';
+import { ClipboardPaste, FileText } from 'lucide-react';
 
-// ── Constantes de categorías ─────────────────────────────────
-const DONES = [
-  'Imposición de Manos', 'Profecía', 'Pastorado',
-  'Instituto Bíblico', 'Introducción', 'Predicación',
-];
-const LABORES = [
-  'Sonido', 'Cámaras', 'Vigilancia', 'Baños',
-  'Casilleros', 'Apoyo Ofrenda', 'Fundas',
-  'Ofrenda Interno', 'Ofrenda Organización',
-  'Llaves', 'Testimonio',
-];
-const MIRA_ROLES = [
-  'Del. Político', 'Del. Comunicaciones', 'InfoMIRA',
-  'Del. Electoral', 'Del. Ideológico',
-];
-const FIMLM_ROLES = [
-  'Cord. Logística', 'Coord. Gestión', 'Cord. Adm y Fcro', 'Campus', 'Otra',
-];
 
 // ── Tipos ────────────────────────────────────────────────────
 interface Colaborador {
@@ -47,7 +34,22 @@ interface Colaborador {
   observaciones: string | null;
   dia_profecia: string[];
   activo: number;
+  es_mira?: boolean | null;
+  es_fimlm?: boolean | null;
+  nombre_preferencia?: string | null;
+  genero?: string | null;
+  fecha_nacimiento?: string | null;
+  ocupacion?: string | null;
+  cemp_fecha_registro?: string | null;
+  cemp_registrado_por?: string | null;
+  datos_actualizados_en?: string | null;
 }
+
+const ESTADOS_CEMP: { val: EstadoCemp; label: string }[] = [
+  { val: 'sin', label: 'Sin registrar' },
+  { val: 'desactualizado', label: 'Por actualizar' },
+  { val: 'aldia', label: 'Al día' },
+];
 
 const EMPTY_FORM = {
   nombre: '', cedula: '', celular: '', email: '', horario: '7:00 AM',
@@ -59,7 +61,7 @@ const EMPTY_FORM = {
   dia_profecia: [] as string[],
 };
 
-type FiltroTab = 'todos' | 'dones' | 'labores' | 'mira' | 'fimlm' | 'dias';
+type FiltroTab = 'todos' | 'dones' | 'labores' | 'mira' | 'fimlm' | 'dias' | 'cemp';
 
 // ── Helpers ──────────────────────────────────────────────────
 function toggle(arr: string[], val: string): string[] {
@@ -116,8 +118,7 @@ export default function ColaboradoresPage() {
   const [form, setForm]           = useState({ ...EMPTY_FORM });
   const [guardando, setGuardando] = useState(false);
   const [errorModal, setErrorModal] = useState('');
-  const [subiendoFoto, setSubiendoFoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cempAbierto, setCempAbierto] = useState(false);
 
   const [confirmEliminar, setConfirmEliminar] = useState<Colaborador | null>(null);
   const [eliminando, setEliminando]           = useState(false);
@@ -157,9 +158,10 @@ export default function ColaboradoresPage() {
       if (filtroTab === 'mira')    lista = lista.filter((c) => c.mira?.includes(filtroValor));
       if (filtroTab === 'fimlm')   lista = lista.filter((c) => c.fimlm?.includes(filtroValor));
       if (filtroTab === 'dias')    lista = lista.filter((c) => c.dia_profecia?.includes(filtroValor));
+      if (filtroTab === 'cemp')    lista = lista.filter((c) => estadoCemp(c) === filtroValor);
     } else {
-      if (filtroTab === 'mira')  lista = lista.filter((c) => (c.mira?.length  ?? 0) > 0);
-      if (filtroTab === 'fimlm') lista = lista.filter((c) => (c.fimlm?.length ?? 0) > 0);
+      if (filtroTab === 'mira')  lista = lista.filter((c) => c.es_mira || (c.mira?.length  ?? 0) > 0);
+      if (filtroTab === 'fimlm') lista = lista.filter((c) => c.es_fimlm || (c.fimlm?.length ?? 0) > 0);
     }
     return lista;
   })();
@@ -190,38 +192,14 @@ export default function ColaboradoresPage() {
       labores:        Array.isArray(col.labores) ? col.labores : [],
       mira:           Array.isArray(col.mira)    ? col.mira    : [],
       fimlm:          Array.isArray(col.fimlm)   ? col.fimlm   : [],
-      fecha_inicio:   col.fecha_inicio    || '',
-      fecha_espiritu: col.fecha_espiritu  || '',
-      fecha_profecia: col.fecha_profecia  || '',
+      fecha_inicio:   (col.fecha_inicio   || '').slice(0, 7),
+      fecha_espiritu: (col.fecha_espiritu || '').slice(0, 7),
+      fecha_profecia: (col.fecha_profecia || '').slice(0, 7),
       observaciones:  col.observaciones   || '',
       dia_profecia:   Array.isArray(col.dia_profecia) ? col.dia_profecia : [],
     });
     setErrorModal('');
     setModal('editar');
-  }
-
-  // ── Subir foto ───────────────────────────────────────────
-  async function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!form.cedula.trim()) {
-      setErrorModal('Ingresa la cédula antes de subir la foto.');
-      return;
-    }
-    setSubiendoFoto(true);
-    try {
-      const fd = new FormData();
-      fd.append('foto', file);
-      fd.append('cedula', form.cedula.trim());
-      const res = await fetch('/api/subir-foto', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al subir foto');
-      setForm((f) => ({ ...f, foto: data.url }));
-    } catch (err: unknown) {
-      setErrorModal((err as Error).message);
-    } finally {
-      setSubiendoFoto(false);
-    }
   }
 
   // ── Guardar ──────────────────────────────────────────────
@@ -283,6 +261,12 @@ export default function ColaboradoresPage() {
       'Bautismo Espíritu': c.fecha_espiritu    || '',
       'Autorización Profecía': c.fecha_profecia || '',
       'Observaciones':     c.observaciones     || '',
+      'Género':            c.genero            || '',
+      'Fecha nacimiento':  c.fecha_nacimiento  || '',
+      'Ocupación':         c.ocupacion         || '',
+      'Estado CEMP':       ESTADO_CEMP_INFO[estadoCemp(c)].label,
+      'Último registro CEMP': c.cemp_fecha_registro ? fechaCorta(c.cemp_fecha_registro) : '',
+      'Registrado en CEMP por': c.cemp_registrado_por || '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     // Ancho de columnas automático
@@ -299,7 +283,8 @@ export default function ColaboradoresPage() {
     filtroTab === 'labores' ? LABORES  :
     filtroTab === 'mira'    ? MIRA_ROLES :
     filtroTab === 'fimlm'   ? FIMLM_ROLES :
-    filtroTab === 'dias' ? ['Lunes', 'Miércoles', 'Viernes', 'Según disponibilidad'] : [];
+    filtroTab === 'dias' ? DIAS_PROFECIA :
+    filtroTab === 'cemp' ? ESTADOS_CEMP.map((e) => e.val) : [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
@@ -343,7 +328,7 @@ export default function ColaboradoresPage() {
                 style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>Culto {filtroHorario}</span>}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <button onClick={exportarExcel}
               disabled={colaboradores.length === 0}
               title="Descargar Excel"
@@ -353,6 +338,12 @@ export default function ColaboradoresPage() {
                 <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/>
               </svg>
               Excel
+            </button>
+            <button onClick={() => setCempAbierto(true)}
+              title="Pegar lista del CEMP"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors"
+              style={{ borderColor: '#D1D5DB', color: '#374151', backgroundColor: '#fff' }}>
+              <ClipboardPaste size={16} /> <span className="hidden sm:inline">CEMP</span>
             </button>
             <button onClick={abrirNuevo}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold shadow-sm"
@@ -383,6 +374,7 @@ export default function ColaboradoresPage() {
             { key: 'mira',    label: 'MIRA'    },
             { key: 'fimlm',   label: 'FIMLM'   },
             { key: 'dias',    label: '📅 Días'  },
+            { key: 'cemp',    label: 'CEMP'  },
           ] as { key: FiltroTab; label: string }[]).map(({ key, label }) => (
             <button key={key}
               onClick={() => { setFiltroTab(key); setFiltroValor(''); }}
@@ -405,7 +397,7 @@ export default function ColaboradoresPage() {
                 style={filtroValor === f
                   ? { backgroundColor: '#C8A24A', color: '#fff', borderColor: '#C8A24A' }
                   : { backgroundColor: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
-                {f}
+                {filtroTab === 'cemp' ? `${ESTADOS_CEMP.find((e) => e.val === f)?.label} (${todos.filter((c) => (!filtroHorario || c.horario === filtroHorario) && estadoCemp(c) === f).length})` : f}
               </button>
             ))}
           </div>
@@ -433,8 +425,8 @@ export default function ColaboradoresPage() {
           <div className="space-y-3">
             {colaboradores.map((col) => {
               const abierto = expandido === col.id;
-              const tieneMira  = col.mira?.length  > 0;
-              const tieneFimlm = col.fimlm?.length > 0;
+              const tieneMira  = !!col.es_mira  || col.mira?.length  > 0;
+              const tieneFimlm = !!col.es_fimlm || col.fimlm?.length > 0;
 
               return (
                 <div key={col.id} className="bg-white rounded-2xl shadow-sm border overflow-hidden"
@@ -455,7 +447,7 @@ export default function ColaboradoresPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: '#1F2937' }}>{col.nombre}</p>
+                      <Link href={`/colaboradores/${col.id}`} className="font-semibold text-sm truncate block hover:underline" style={{ color: '#1F2937' }}>{col.nombre}</Link>
                       <p className="text-xs" style={{ color: '#6B7280' }}>
                         {col.cedula && <span>{col.cedula}</span>}
                         {col.cedula && col.celular && <span className="mx-1">·</span>}
@@ -473,6 +465,13 @@ export default function ColaboradoresPage() {
                         )}
                         {tieneMira  && <Badge label="MIRA"  color="#2563EB" />}
                         {tieneFimlm && <Badge label="FIMLM" color="#16A34A" />}
+                        {(() => { const e = ESTADO_CEMP_INFO[estadoCemp(col)]; return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{ backgroundColor: e.bg, color: e.color }}
+                            title={col.cemp_fecha_registro ? `Último registro CEMP: ${fechaCorta(col.cemp_fecha_registro)}` : undefined}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} />
+                            {col.cemp_fecha_registro ? `CEMP ${fechaCorta(col.cemp_fecha_registro)}` : 'Sin CEMP'}
+                          </span>); })()}
                       </div>
                     </div>
 
@@ -482,7 +481,11 @@ export default function ColaboradoresPage() {
                         className="p-2 rounded-lg hover:bg-gray-50 transition-colors">
                         {abierto ? <ChevronUp size={16} style={{ color: '#6B7280' }} /> : <ChevronDown size={16} style={{ color: '#6B7280' }} />}
                       </button>
-                      <button onClick={() => abrirEditar(col)}
+                      <Link href={`/colaboradores/${col.id}`} title="Ficha completa"
+                        className="p-2 rounded-lg hover:bg-amber-50 transition-colors">
+                        <FileText size={16} style={{ color: '#C8A24A' }} />
+                      </Link>
+                      <button onClick={() => abrirEditar(col)} title="Edición rápida"
                         className="p-2 rounded-lg hover:bg-blue-50 transition-colors">
                         <Edit2 size={16} style={{ color: '#2563EB' }} />
                       </button>
@@ -633,30 +636,7 @@ export default function ColaboradoresPage() {
               {/* Foto */}
               <section>
                 <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#1E3A8A' }}>Foto</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 flex items-center justify-center flex-shrink-0"
-                    style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}>
-                    {form.foto
-                      ? <Image src={form.foto} alt="foto" width={128} height={128} className="object-cover w-full h-full" unoptimized />
-                      : <User size={24} style={{ color: '#9CA3AF' }} />
-                    }
-                  </div>
-                  <div className="flex-1">
-                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                      className="hidden" onChange={handleFoto} />
-                    <button type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={subiendoFoto}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-colors"
-                      style={{ borderColor: '#D1D5DB', color: '#374151' }}>
-                      <Camera size={15} />
-                      {subiendoFoto ? 'Subiendo…' : 'Seleccionar foto'}
-                    </button>
-                    {!form.cedula && (
-                      <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>Ingresa la cédula primero</p>
-                    )}
-                  </div>
-                </div>
+                <FotoInput value={form.foto} cedula={form.cedula} onChange={(url) => setForm((f) => ({ ...f, foto: url }))} />
               </section>
 
               {/* Fechas espirituales */}
@@ -670,7 +650,7 @@ export default function ColaboradoresPage() {
                   ].map(({ label, key }) => (
                     <div key={key}>
                       <label className="text-xs font-medium block mb-1" style={{ color: '#374151' }}>{label}</label>
-                      <input type="date" className="w-full border rounded-xl px-3 py-2 text-sm outline-none"
+                      <input type="month" className="w-full border rounded-xl px-3 py-2 text-sm outline-none"
                         style={{ borderColor: '#E5E7EB' }}
                         value={form[key as keyof typeof form] as string}
                         onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
@@ -818,6 +798,100 @@ export default function ColaboradoresPage() {
           </button>
         </div>
       )}
+      {cempAbierto && <ImportarCemp onCerrar={() => setCempAbierto(false)} onListo={() => { setCempAbierto(false); cargar(); }} />}
+    </div>
+  );
+}
+
+// ── Importar lista pegada desde el CEMP ──────────────────────
+interface ResultadoCemp {
+  total: number;
+  coinciden: { id: number; nombre: string; cedula: string; fecha: string | null; registrado_por: string | null; fecha_anterior: string | null }[];
+  nuevos: { cedula: string; nombre: string; celular: string | null; fecha: string | null }[];
+  actualizados: number; creados: number;
+}
+
+function ImportarCemp({ onCerrar, onListo }: { onCerrar: () => void; onListo: () => void }) {
+  const [texto, setTexto] = useState('');
+  const [res, setRes] = useState<ResultadoCemp | null>(null);
+  const [crearNuevos, setCrearNuevos] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function enviar(aplicar: boolean) {
+    setCargando(true); setError('');
+    const r = await fetch('/api/cemp/importar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto, aplicar, crearNuevos }),
+    });
+    const d = await r.json().catch(() => ({}));
+    setCargando(false);
+    if (!r.ok) { setError(d.error || 'No se pudo leer la lista'); return; }
+    if (aplicar) {
+      alert(`Listo: ${d.actualizados} fichas marcadas con su registro CEMP${d.creados ? ` y ${d.creados} colaboradores nuevos creados` : ''}.`);
+      onListo();
+    } else setRes(d);
+  }
+
+  const aActualizar = res?.coinciden.filter((c) => c.fecha && (!c.fecha_anterior || new Date(c.fecha) > new Date(c.fecha_anterior))) ?? [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col" style={{ maxHeight: '92dvh' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#F3F4F6' }}>
+          <h2 className="font-bold" style={{ color: '#1F2937' }}>Cruzar con la lista del CEMP</h2>
+          <button onClick={onCerrar} className="p-1 rounded-lg hover:bg-gray-100"><X size={20} style={{ color: '#6B7280' }} /></button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 flex-1 space-y-4">
+          {!res ? (
+            <>
+              <ol className="text-sm space-y-1 list-decimal pl-5" style={{ color: '#4B5563' }}>
+                <li>En el CEMP abre Colaboradores y elige la pestaña (Profetizadores, Imposición de manos…).</li>
+                <li>Selecciona las filas de la tabla con el mouse y cópialas (Ctrl+C).</li>
+                <li>Pégalas aquí abajo (Ctrl+V). Puedes repetir con cada pestaña o página.</li>
+              </ol>
+              <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={10}
+                placeholder="Pega aquí las filas copiadas del CEMP…"
+                className="w-full border rounded-2xl px-3 py-2 text-sm font-mono outline-none" style={{ borderColor: '#D1D5DB' }} />
+            </>
+          ) : (
+            <>
+              <p className="text-sm" style={{ color: '#4B5563' }}>Se leyeron <b>{res.total}</b> personas del CEMP.</p>
+              <div className="rounded-2xl p-4" style={{ backgroundColor: '#F0FDF4' }}>
+                <p className="font-semibold text-sm" style={{ color: '#15803D' }}>
+                  {res.coinciden.length} están en nuestra app · {aActualizar.length} con fecha de registro nueva
+                </p>
+                <ul className="mt-2 text-sm space-y-1 max-h-40 overflow-y-auto" style={{ color: '#374151' }}>
+                  {aActualizar.map((c) => <li key={c.id}>{c.nombre} — {fechaCorta(c.fecha)}{c.registrado_por ? ` · ${c.registrado_por}` : ''}</li>)}
+                </ul>
+              </div>
+              {res.nuevos.length > 0 && (
+                <div className="rounded-2xl p-4" style={{ backgroundColor: '#FFFBEB' }}>
+                  <p className="font-semibold text-sm" style={{ color: '#B45309' }}>{res.nuevos.length} están en el CEMP pero no en nuestra app</p>
+                  <ul className="mt-2 text-sm space-y-1 max-h-40 overflow-y-auto" style={{ color: '#374151' }}>
+                    {res.nuevos.map((n) => <li key={n.cedula}>{n.nombre} · {n.cedula}</li>)}
+                  </ul>
+                  <label className="flex items-center gap-2 mt-3 text-sm font-medium" style={{ color: '#1F2937' }}>
+                    <input type="checkbox" checked={crearNuevos} onChange={(e) => setCrearNuevos(e.target.checked)} className="w-4 h-4" />
+                    Crearlos como colaboradores (luego completas su horario y datos)
+                  </label>
+                </div>
+              )}
+              <p className="text-xs" style={{ color: '#6B7280' }}>
+                Quienes están en nuestra app y no aparecen en el CEMP quedan con la etiqueta &quot;Sin CEMP&quot;. Usa el filtro CEMP para verlos.
+              </p>
+            </>
+          )}
+          {error && <p className="text-sm px-3 py-2 rounded-xl" style={{ backgroundColor: '#FEF2F2', color: '#B91C1C' }}>{error}</p>}
+        </div>
+        <div className="px-5 py-4 border-t flex gap-3" style={{ borderColor: '#F3F4F6' }}>
+          {res && <button onClick={() => setRes(null)} className="px-4 py-2.5 rounded-xl border text-sm font-semibold" style={{ borderColor: '#D1D5DB', color: '#374151' }}>Atrás</button>}
+          <button disabled={cargando || !texto.trim()} onClick={() => enviar(!!res)}
+            className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50" style={{ backgroundColor: '#1E3A8A' }}>
+            {cargando ? 'Procesando…' : res ? 'Guardar cambios' : 'Revisar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

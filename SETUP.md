@@ -62,3 +62,13 @@ lo hacemos con un script de importación.
 NEXT_PUBLIC_SUPABASE_URL=https://TUPROYECTO.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
+
+---
+
+## Actualización CEMP (septiembre 2026)
+
+1. Supabase → SQL Editor → ejecutar `supabase/migracion_cemp.sql` (una sola vez).
+2. Vercel → Settings → Environment Variables → agregar `ADMIN_PASSWORD` con la contraseña de administración.
+3. Formulario público para colaboradores: `/registro`. Todo lo que llega queda en `/solicitudes` para aprobar.
+4. Cada ficha (`/colaboradores/[id]`) muestra el estado frente al CEMP y los datos en el mismo orden de sus pantallas.
+5. Botón **CEMP** en Colaboradores: pegar filas copiadas de la tabla del CEMP para marcar fechas de registro por cédula.

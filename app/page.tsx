@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import { Users, Calendar, UserCheck, UserCog, ArrowRight, BarChart2, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { estadoCemp, ESTADO_CEMP_INFO, type EstadoCemp } from '@/lib/catalogos';
 
 interface Sesion {
   id: number; fecha: string; descripcion?: string;
@@ -57,8 +58,11 @@ export default function Dashboard() {
     : stats.totalEstudiantes;
   const imposicion   = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Imposición de Manos')).length : stats.imposicionManos;
   const profeciaNum  = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Profecía')).length            : stats.profecia;
-  const miraNum      = filtroHorario ? lista.filter((c: any) => (c.mira?.length  ?? 0) > 0).length              : stats.enMira;
-  const fimlmNum     = filtroHorario ? lista.filter((c: any) => (c.fimlm?.length ?? 0) > 0).length              : stats.enFimlm;
+  const miraNum      = todos.length ? lista.filter((c: any) => c.es_mira  || (c.mira?.length  ?? 0) > 0).length : stats.enMira;
+  const fimlmNum     = todos.length ? lista.filter((c: any) => c.es_fimlm || (c.fimlm?.length ?? 0) > 0).length : stats.enFimlm;
+  const cemp = (['sin', 'desactualizado', 'aldia'] as EstadoCemp[]).map((e) => ({
+    estado: e, info: ESTADO_CEMP_INFO[e], n: lista.filter((c: any) => estadoCemp(c) === e).length,
+  }));
 
   const pct = stats.ultimaSesion && stats.ultimaSesion.total_registros > 0
     ? Math.round((stats.ultimaSesion.total_asistieron / stats.ultimaSesion.total_registros) * 100) : 0;
@@ -126,6 +130,29 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+
+        {/* Estado frente al CEMP */}
+        {todos.length > 0 && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold" style={{ color: '#1F2937' }}>Registro en el CEMP</h3>
+              <Link href="/colaboradores" className="text-sm font-medium" style={{ color: '#1E3A8A' }}>Ver colaboradores →</Link>
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden mb-4" style={{ backgroundColor: '#F3F4F6' }}>
+              {cemp.map(({ estado, info, n }) => n > 0 && (
+                <div key={estado} style={{ width: `${(n / lista.length) * 100}%`, backgroundColor: info.color }} />
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {cemp.map(({ estado, info, n }) => (
+                <div key={estado} className="rounded-xl p-3" style={{ backgroundColor: info.bg }}>
+                  <div className="text-2xl font-bold" style={{ color: info.color }}>{n}</div>
+                  <div className="text-xs mt-0.5" style={{ color: '#4B5563' }}>{info.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Última sesión */}
         {!loading && stats.ultimaSesion && (

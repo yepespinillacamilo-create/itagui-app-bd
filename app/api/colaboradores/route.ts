@@ -1,25 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 
-// ── Sincroniza con la tabla de estudiantes del Instituto ──────
-async function sincronizarInstituto(
-  sb: ReturnType<typeof getSupabase>,
-  col: { nombre: string; cedula: string | null; celular: string | null; foto: string | null; dones: string[]; horario?: string | null }
-) {
-  if (!col.cedula) return;
-  const tieneInstituto = col.dones.includes('Instituto Bíblico');
-
-  if (tieneInstituto) {
-    await sb.from('estudiantes').upsert(
-      { nombre: col.nombre, cedula: col.cedula, celular: col.celular || null,
-        foto: col.foto || null, activo: 1, horario: col.horario || '7:00 AM' },
-      { onConflict: 'cedula' }
-    );
-  } else {
-    await sb.from('estudiantes').update({ activo: 0 }).eq('cedula', col.cedula);
-  }
-}
-
 export async function GET(req: NextRequest) {
   try {
     const sb = getSupabase();
@@ -79,14 +60,6 @@ export async function POST(req: NextRequest) {
     }).select().single();
 
     if (error) throw error;
-
-    // Sincronizar con Instituto Bíblico
-    await sincronizarInstituto(sb, {
-      nombre: nombre.trim(), cedula: cedula?.trim() || null,
-      celular: celular?.trim() || null, foto: foto || null,
-      dones: donesArr, horario: horario?.trim() || '7:00 AM',
-    });
-
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error(error);
@@ -129,14 +102,6 @@ export async function PUT(req: NextRequest) {
     }).eq('id', Number(id)).select().single();
 
     if (error) throw error;
-
-    // Sincronizar con Instituto Bíblico automáticamente
-    await sincronizarInstituto(sb, {
-      nombre: nombre.trim(), cedula: cedula?.trim() || null,
-      celular: celular?.trim() || null, foto: foto || null,
-      dones: donesArr, horario: horario?.trim() || '7:00 AM',
-    });
-
     return NextResponse.json(data);
   } catch (error) {
     console.error(error);
@@ -150,12 +115,6 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
-
-    // Antes de eliminar, obtener la cédula para limpiar estudiantes
-    const { data: col } = await sb.from('colaboradores').select('cedula').eq('id', Number(id)).single();
-    if (col?.cedula) {
-      await sb.from('estudiantes').update({ activo: 0 }).eq('cedula', col.cedula);
-    }
 
     const { error } = await sb.from('colaboradores').delete().eq('id', Number(id));
     if (error) throw error;

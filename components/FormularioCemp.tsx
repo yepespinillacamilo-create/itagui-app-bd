@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, Plus, Trash2 } from 'lucide-react';
 import FotoInput from '@/components/FotoInput';
 import {
-  DONES, DONES_CEMP, LABORES_CEMP, LABORES_INTERNAS, HORARIOS,
+  DONES, DONES_CEMP, LABORES_CEMP, HORARIOS, ACTIVIDADES_HISTORICAS, COMUNAS_ITAGUI, grupoDeActividad,
   TIPOS_DOCUMENTO, NIVELES_EDUCATIVOS, NIVELES_IDIOMA,
 } from '@/lib/catalogos';
-import type { Ficha } from '@/lib/ficha';
+import { inactivaVacia, type Ficha, type LaborInactiva } from '@/lib/ficha';
 
 const PASOS = [
   { titulo: 'Información personal', sub: 'Datos básicos' },
@@ -96,6 +96,83 @@ function OpcionesConFecha({ opciones, seleccion, fechas, onToggle, onFecha }: {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Una actividad histórica: primero se elige la actividad y luego aparecen sus preguntas (igual que en el CEMP)
+function ActividadHistorica({ valor, nombreUsted, onChange, onQuitar }: {
+  valor: LaborInactiva; nombreUsted: string;
+  onChange: (v: LaborInactiva) => void; onQuitar: () => void;
+}) {
+  const grupo = grupoDeActividad(valor.labor);
+  const set = <K extends keyof LaborInactiva>(k: K, v: LaborInactiva[K]) => onChange({ ...valor, [k]: v });
+  return (
+    <div className="rounded-2xl border p-4 space-y-4" style={{ borderColor: valor.labor ? '#1E3A8A' : '#E5E7EB' }}>
+      <div className="flex gap-2 items-start">
+        <div className="flex-1 min-w-0">
+        <Campo label="Seleccione tipo de actividad">
+          <select className={inputCls} style={inputStyle} value={valor.labor}
+            onChange={(e) => onChange({ ...valor, labor: e.target.value, grupo: grupoDeActividad(e.target.value)?.grupo ?? '' })}>
+            <option value="">Seleccione…</option>
+            {ACTIVIDADES_HISTORICAS.map((g) => (
+              <optgroup key={g.grupo} label={g.grupo}>
+                {g.opciones.map((o) => <option key={o} value={o}>{o}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </Campo>
+        </div>
+        <button type="button" onClick={onQuitar} aria-label="Quitar actividad"
+          className="p-2.5 mt-7 rounded-xl hover:bg-red-50 flex-shrink-0"><Trash2 size={18} style={{ color: '#DC2626' }} /></button>
+      </div>
+
+      {grupo && (
+        <>
+          <Campo label={grupo.lugar}>
+            <input className={inputCls} style={inputStyle} value={valor.lugar}
+              placeholder={grupo.lugar.startsWith('Zona') ? 'Ej: Colombia' : 'Ej: IG68 · Itagüí, u otra sede'}
+              onChange={(e) => set('lugar', e.target.value)} />
+          </Campo>
+          <div>
+            <p className="text-sm font-medium mb-2" style={{ color: '#374151' }}>Fecha de inicio y fin de la labor</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Campo label="🟢 Fecha inicio" ayuda="Año y mes en que inició. Si no lo recuerda, la fecha más aproximada.">
+                <input type="month" className={inputCls} style={inputStyle} value={valor.fecha_inicio}
+                  onChange={(e) => set('fecha_inicio', e.target.value)} />
+              </Campo>
+              <Campo label="🔴 Fecha fin" ayuda="Año y mes en que finalizó. Si no lo recuerda, la fecha más aproximada.">
+                <input type="month" className={inputCls} style={inputStyle} value={valor.fecha_fin}
+                  onChange={(e) => set('fecha_fin', e.target.value)} />
+              </Campo>
+            </div>
+          </div>
+          <Pregunta texto={grupo.postula}>
+            <div className="space-y-2">
+              {[true, false].map((usted) => (
+                <button key={String(usted)} type="button" onClick={() => set('postula_usted', usted)}
+                  className="flex items-center gap-2.5 text-[15px]" style={{ color: '#111827' }}>
+                  <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                    style={{ borderColor: valor.postula_usted === usted ? '#1E3A8A' : '#9CA3AF' }}>
+                    {valor.postula_usted === usted && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#1E3A8A' }} />}
+                  </span>
+                  {usted ? `${nombreUsted || 'La misma persona'} (Usted)` : 'Otro'}
+                </button>
+              ))}
+              {!valor.postula_usted && (
+                <input className={inputCls} style={inputStyle} placeholder="Nombre" value={valor.postula_nombre}
+                  onChange={(e) => set('postula_nombre', e.target.value)} />
+              )}
+            </div>
+          </Pregunta>
+        </>
+      )}
+
+      {valor.detalle && (
+        <Campo label="Nota anterior">
+          <input className={inputCls} style={inputStyle} value={valor.detalle} onChange={(e) => set('detalle', e.target.value)} />
+        </Campo>
+      )}
     </div>
   );
 }
@@ -302,6 +379,18 @@ export default function FormularioCemp({ inicial, modo, onEnviar, textoEnviar = 
                 <Campo label="Dirección">
                   <input className={inputCls} style={inputStyle} value={f.direccion} onChange={(e) => set('direccion', e.target.value)} />
                 </Campo>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Campo label="Barrio">
+                    <input className={inputCls} style={inputStyle} value={f.barrio} onChange={(e) => set('barrio', e.target.value)} />
+                  </Campo>
+                  <Campo label="Comuna" ayuda="En Itagüí puede elegir de la lista.">
+                    <input list="comunas-itagui" className={inputCls} style={inputStyle} value={f.comuna}
+                      onChange={(e) => set('comuna', e.target.value)} />
+                    <datalist id="comunas-itagui">
+                      {COMUNAS_ITAGUI.map((c) => <option key={c} value={c} />)}
+                    </datalist>
+                  </Campo>
+                </div>
               </Bloque>
             </>
           )}
@@ -418,29 +507,23 @@ export default function FormularioCemp({ inicial, modo, onEnviar, textoEnviar = 
                 <OpcionesConFecha opciones={LABORES_CEMP} seleccion={f.labores} fechas={f.fechas_labores}
                   onToggle={(o) => toggle('labores', o)}
                   onFecha={(o, v) => set('fechas_labores', { ...f.fechas_labores, [o]: v })} />
-                <p className="text-sm font-medium pt-2" style={{ color: '#374151' }}>Otras labores de esta sede</p>
-                <OpcionesConFecha opciones={LABORES_INTERNAS} seleccion={f.labores} fechas={f.fechas_labores}
-                  onToggle={(o) => toggle('labores', o)}
-                  onFecha={(o, v) => set('fechas_labores', { ...f.fechas_labores, [o]: v })} />
               </Bloque>
-              <Bloque titulo="Labores inactivas">
-                <p className="text-sm -mt-1" style={{ color: '#6B7280' }}>Labores que realizó en otras sedes o que ya no ejerce.</p>
+              <Bloque titulo="Actividades históricas (inactivas)">
+                <p className="inline-flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl -mt-1"
+                  style={{ backgroundColor: '#FEF2F2', color: '#B91C1C' }}>
+                  <AlertCircle size={16} /> Solo agregue las labores o dones que realizó anteriormente
+                </p>
+                <p className="text-sm" style={{ color: '#6B7280' }}>
+                  Agregue las labores y dones que <strong>actualmente no realiza</strong> o que realizó en otros templos.
+                </p>
                 {f.labores_inactivas.map((l, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
-                    <select className={inputCls} style={inputStyle} value={l.labor}
-                      onChange={(e) => set('labores_inactivas', f.labores_inactivas.map((x, j) => j === i ? { ...x, labor: e.target.value } : x))}>
-                      <option value="">Labor…</option>
-                      {[...LABORES_CEMP, ...DONES_CEMP].map((o) => <option key={o}>{o}</option>)}
-                    </select>
-                    <input className={inputCls} style={inputStyle} placeholder="Dónde / hasta cuándo" value={l.detalle}
-                      onChange={(e) => set('labores_inactivas', f.labores_inactivas.map((x, j) => j === i ? { ...x, detalle: e.target.value } : x))} />
-                    <button type="button" onClick={() => set('labores_inactivas', f.labores_inactivas.filter((_, j) => j !== i))}
-                      className="p-2.5 rounded-xl hover:bg-red-50"><Trash2 size={18} style={{ color: '#DC2626' }} /></button>
-                  </div>
+                  <ActividadHistorica key={i} valor={l} nombreUsted={f.nombre_preferencia.trim() || sugerido}
+                    onChange={(v) => set('labores_inactivas', f.labores_inactivas.map((x, j) => j === i ? v : x))}
+                    onQuitar={() => set('labores_inactivas', f.labores_inactivas.filter((_, j) => j !== i))} />
                 ))}
-                <button type="button" onClick={() => set('labores_inactivas', [...f.labores_inactivas, { labor: '', detalle: '' }])}
+                <button type="button" onClick={() => set('labores_inactivas', [...f.labores_inactivas, inactivaVacia()])}
                   className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: '#1E3A8A' }}>
-                  <Plus size={16} /> Agregar labor inactiva
+                  <Plus size={16} /> Agregar actividad histórica
                 </button>
               </Bloque>
             </>

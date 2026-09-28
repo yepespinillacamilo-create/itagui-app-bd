@@ -1,9 +1,19 @@
-import { IGLESIA_ITAGUI } from './catalogos';
+import { IGLESIA_ITAGUI, grupoDeActividad } from './catalogos';
 
 // ── Ficha del colaborador, tal como la maneja el formulario ──
 export interface Estudio { nivel: string; titulo: string; estado: string; anio: string }
 export interface Idioma { idioma: string; nivel: string }
-export interface LaborInactiva { labor: string; detalle: string }
+// Actividad histórica (labor o don que ya no ejerce). `detalle` guarda el texto libre de registros anteriores.
+export interface LaborInactiva {
+  grupo: string; labor: string; lugar: string;
+  fecha_inicio: string; fecha_fin: string;          // 'AAAA-MM'
+  postula_usted: boolean; postula_nombre: string;
+  detalle: string;
+}
+
+export function inactivaVacia(): LaborInactiva {
+  return { grupo: '', labor: '', lugar: '', fecha_inicio: '', fecha_fin: '', postula_usted: true, postula_nombre: '', detalle: '' };
+}
 
 export interface Ficha {
   // 1. Personal
@@ -14,7 +24,7 @@ export interface Ficha {
   nombre_preferencia: string; foto: string;
   // 2. Ubicación y contacto
   indicativo: string; celular: string; email: string;
-  pais_residencia: string; ciudad_residencia: string; direccion: string;
+  pais_residencia: string; ciudad_residencia: string; direccion: string; barrio: string; comuna: string;
   // 3. Espiritual
   fecha_inicio: string; iglesia_inicio: string;
   bautismo_es: boolean | null; fecha_espiritu: string;
@@ -43,7 +53,7 @@ export function fichaVacia(): Ficha {
     pais_nacimiento: 'Colombia', depto_nacimiento: 'Antioquia', ciudad_nacimiento: '',
     nombre_preferencia: '', foto: '',
     indicativo: '+57', celular: '', email: '',
-    pais_residencia: 'Colombia', ciudad_residencia: 'Itagüí', direccion: '',
+    pais_residencia: 'Colombia', ciudad_residencia: 'Itagüí', direccion: '', barrio: '', comuna: '',
     fecha_inicio: '', iglesia_inicio: IGLESIA_ITAGUI,
     bautismo_es: null, fecha_espiritu: '',
     fecha_congrega_actual: '', iglesia_actual: IGLESIA_ITAGUI, horario: '',
@@ -66,6 +76,18 @@ const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 const obj = (v: unknown): Record<string, string> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, string>) : {};
 
+// Completa los campos que faltan (registros antiguos solo tenían labor + detalle)
+export function normalizarInactiva(l: Partial<LaborInactiva>): LaborInactiva {
+  const labor = txt(l.labor);
+  return {
+    grupo: txt(l.grupo) || grupoDeActividad(labor)?.grupo || '',
+    labor, lugar: txt(l.lugar),
+    fecha_inicio: mes(l.fecha_inicio), fecha_fin: mes(l.fecha_fin),
+    postula_usted: l.postula_usted !== false, postula_nombre: txt(l.postula_nombre),
+    detalle: txt(l.detalle),
+  };
+}
+
 // Fila de la base de datos → ficha para el formulario
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function fichaDesdeDb(r: any): Ficha {
@@ -84,7 +106,7 @@ export function fichaDesdeDb(r: any): Ficha {
     indicativo: txt(r.indicativo) || '+57', celular: txt(r.celular), email: txt(r.email),
     pais_residencia: txt(r.pais_residencia) || base.pais_residencia,
     ciudad_residencia: txt(r.ciudad_residencia) || base.ciudad_residencia,
-    direccion: txt(r.direccion),
+    direccion: txt(r.direccion), barrio: txt(r.barrio), comuna: txt(r.comuna),
     fecha_inicio: mes(r.fecha_inicio), iglesia_inicio: txt(r.iglesia_inicio) || base.iglesia_inicio,
     bautismo_es: r.bautismo_es ?? (r.fecha_espiritu ? true : null), fecha_espiritu: mes(r.fecha_espiritu),
     fecha_congrega_actual: mes(r.fecha_congrega_actual),
@@ -98,7 +120,7 @@ export function fichaDesdeDb(r: any): Ficha {
     dones: arr<string>(r.dones),
     fechas_dones: { ...(r.fecha_profecia ? { 'Profecía': mes(r.fecha_profecia) } : {}), ...obj(r.fechas_dones) },
     labores: arr<string>(r.labores), fechas_labores: obj(r.fechas_labores),
-    labores_inactivas: arr<LaborInactiva>(r.labores_inactivas),
+    labores_inactivas: arr<Partial<LaborInactiva>>(r.labores_inactivas).map(normalizarInactiva),
     estudios: arr<Estudio>(r.estudios), idiomas: arr<Idioma>(r.idiomas), ocupacion: txt(r.ocupacion),
     salud_afiliado: r.salud_afiliado ?? null, salud_entidad: txt(r.salud_entidad),
     observaciones: txt(r.observaciones),
@@ -136,7 +158,7 @@ export function fichaADb(f: Ficha) {
     foto: limpio(f.foto),
     indicativo: limpio(f.indicativo), celular: soloDigitos(f.celular) || null, email: limpio(f.email),
     pais_residencia: limpio(f.pais_residencia), ciudad_residencia: limpio(f.ciudad_residencia),
-    direccion: limpio(f.direccion),
+    direccion: limpio(f.direccion), barrio: limpio(f.barrio), comuna: limpio(f.comuna),
     fecha_inicio: limpio(f.fecha_inicio), iglesia_inicio: limpio(f.iglesia_inicio),
     bautismo_es: f.bautismo_es, fecha_espiritu: f.bautismo_es === false ? null : limpio(f.fecha_espiritu),
     fecha_congrega_actual: limpio(f.fecha_congrega_actual), iglesia_actual: limpio(f.iglesia_actual),
@@ -151,7 +173,10 @@ export function fichaADb(f: Ficha) {
     dones: f.dones, fechas_dones: fechasDones,
     fecha_profecia: fechasDones['Profecía'] || null,
     labores: f.labores, fechas_labores: fechasLabores,
-    labores_inactivas: (f.labores_inactivas || []).filter((l) => l.labor?.trim()),
+    labores_inactivas: (f.labores_inactivas || []).filter((l) => l.labor?.trim()).map((l) => {
+      const n = normalizarInactiva(l);
+      return { ...n, grupo: grupoDeActividad(n.labor)?.grupo || n.grupo, postula_nombre: n.postula_usted ? '' : n.postula_nombre.trim() };
+    }),
     estudios: (f.estudios || []).filter((e) => e.nivel || e.titulo),
     idiomas: (f.idiomas || []).filter((i) => i.idioma?.trim()),
     ocupacion: limpio(f.ocupacion),
@@ -179,7 +204,7 @@ export function fusionarFicha(existente: any, nueva: FichaDb) {
   for (const [k, v] of Object.entries(nueva)) {
     if (k === 'dones' || k === 'labores') { out[k] = unir(existente[k], v); continue; }
     if (k === 'fechas_dones' || k === 'fechas_labores') { out[k] = { ...obj(existente[k]), ...obj(v) }; continue; }
-    if (k === 'labores_inactivas') { out[k] = unirObjs<LaborInactiva>(existente[k], v, (x) => x.labor); continue; }
+    if (k === 'labores_inactivas') { out[k] = unirObjs<LaborInactiva>(existente[k], v, (x) => `${x.labor}|${x.fecha_inicio ?? ''}`); continue; }
     if (k === 'estudios') { out[k] = unirObjs<Estudio>(existente[k], v, (x) => `${x.nivel}|${x.titulo}`); continue; }
     if (k === 'idiomas') { out[k] = unirObjs<Idioma>(existente[k], v, (x) => x.idioma); continue; }
     if (k === 'observaciones') {

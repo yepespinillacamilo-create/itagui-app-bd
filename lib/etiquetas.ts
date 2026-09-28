@@ -20,6 +20,14 @@ const conFechas = (items: unknown, fechas: unknown) =>
       }).join(' · ')
     : '';
 
+// "Sonido — Itagüí (mar 2015 – ene 2019), postuló: Hno. Pérez"
+const inactiva = (l: Fila) => {
+  const periodo = l.fecha_inicio || l.fecha_fin ? `${l.fecha_inicio ? mes(l.fecha_inicio) : '?'} – ${l.fecha_fin ? mes(l.fecha_fin) : '?'}` : '';
+  const partes = [l.lugar, periodo && `(${periodo})`].filter(Boolean).join(' ');
+  const postula = l.postula_usted === false && l.postula_nombre ? `postuló: ${l.postula_nombre}` : '';
+  return [l.labor, [partes, postula, l.detalle].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
+};
+
 export interface CampoVista { clave: string; etiqueta: string; valor: (r: Fila) => string }
 export interface SeccionVista { titulo: string; campos: CampoVista[] }
 
@@ -37,6 +45,7 @@ export const SECCIONES: SeccionVista[] = [
   ]},
   { titulo: 'Ubicación y contacto', campos: [
     c('pais_residencia', 'País de residencia'), c('ciudad_residencia', 'Ciudad de residencia'), c('direccion', 'Dirección'),
+    c('barrio', 'Barrio'), c('comuna', 'Comuna'),
     c('indicativo', 'Indicativo'), c('celular', 'Número de teléfono'), c('email', 'Correo electrónico'),
   ]},
   { titulo: 'Información espiritual', campos: [
@@ -56,8 +65,8 @@ export const SECCIONES: SeccionVista[] = [
   ]},
   { titulo: 'Labores en la Iglesia', campos: [
     c('labores', 'Labores activas', (r) => conFechas(r.labores, r.fechas_labores)),
-    c('labores_inactivas', 'Labores inactivas', (r) => Array.isArray(r.labores_inactivas)
-      ? r.labores_inactivas.map((l: Fila) => [l.labor, l.detalle].filter(Boolean).join(' — ')).join(' · ') : ''),
+    c('labores_inactivas', 'Actividades históricas (inactivas)', (r) => Array.isArray(r.labores_inactivas)
+      ? r.labores_inactivas.map(inactiva).join(' · ') : ''),
   ]},
   { titulo: 'Información educativa', campos: [
     c('estudios', 'Estudios', (r) => Array.isArray(r.estudios)

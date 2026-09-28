@@ -6,8 +6,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Itagüí · BD Colaboradores — guía para agentes
 
-App interna de la Iglesia Itagüí (IDMJI) para gestionar colaboradores, su registro en el CEMP
-y la asistencia del Instituto Bíblico. Producción: `itagui-app.vercel.app` (Vercel publica cada push a `main`).
+App interna de la Iglesia Itagüí (IDMJI) para gestionar colaboradores y su registro en el CEMP.
+La parte de asistencia del Instituto Bíblico se retiró (sept. 2026): las tablas `estudiantes`, `sesiones` y
+`asistencias` siguen en Supabase con su historial, pero la app ya no las usa. Producción: `itagui-app.vercel.app` (Vercel publica cada push a `main`).
 
 > `PARA_CLAUDE.md` y `SETUP.md` son documentos históricos (hablan de Turso, Cloudinary, Render y "San Diego").
 > **Este archivo es la referencia vigente.**
@@ -35,13 +36,11 @@ Páginas:
 
 | Ruta | Acceso | Qué hace |
 |---|---|---|
-| `/` | admin | Dashboard con estadísticas (`/api/stats`) |
+| `/` | admin | Dashboard: estadísticas (`/api/stats`), estado CEMP y solicitudes por revisar |
 | `/colaboradores` | admin | Lista, filtros, exportar, botón **CEMP** (pegar tabla del CEMP) |
 | `/colaboradores/[id]` | admin | Ficha completa en el orden del CEMP + estado CEMP + marcar/desmarcar registro |
 | `/colaboradores/[id]/editar` | admin | Edición con `FormularioCemp` en modo `admin` |
 | `/solicitudes` | admin | Bandeja de solicitudes pendientes del formulario público (aprobar / rechazar) |
-| `/instituto` | admin | Asistencia, estudiantes e histórico del Instituto Bíblico (unificado) |
-| `/asistencia`, `/estudiantes`, `/historial` | admin | Vistas antiguas del Instituto (siguen activas) |
 | `/registro` | **pública** | Formulario para que el colaborador llene su ficha (`FormularioCemp` modo `publico`) |
 | `/login` | **pública** | Contraseña de administración |
 
@@ -52,7 +51,7 @@ APIs (Route Handlers en `app/api/`, todas usan `getSupabase()` en servidor):
 - `solicitudes` (GET pendientes + ficha existente para comparar) y `solicitudes/[id]` (POST `{accion: 'aprobar'|'rechazar'}`).
 - `cemp/importar` (POST: cruza la tabla pegada del CEMP por cédula; sin `aplicar` solo previsualiza).
 - `subir-foto` (admin → `fotos/colaboradores/<cedula>.jpg`, upsert, máx. 8 MB).
-- `estudiantes`, `estudiantes/[id]`, `asistencias`, `asistencias/[id]`, `exportar`, `stats`, `login`.
+- `stats`, `login`.
 
 ## Base de datos (Supabase)
 
@@ -61,10 +60,14 @@ APIs (Route Handlers en `app/api/`, todas usan `getSupabase()` en servidor):
   vienen de `supabase/migracion_cemp.sql`. Listas y detalles se guardan en JSONB
   (`dones`, `labores`, `mira`, `fimlm`, `dia_profecia`, `fechas_dones`, `fechas_labores`, `labores_inactivas`, `estudios`, `idiomas`).
 - `solicitudes`: `cedula`, `datos` (JSONB con la ficha ya convertida por `fichaADb`), `estado` (`pendiente|aprobada|rechazada`), `colaborador_id`, `creado_en`, `revisado_en`.
-- `estudiantes`, `sesiones`, `asistencias`: Instituto Bíblico. `asistio`: 1 = asistió, 0 = pendiente, -1 = ausente.
+- `labores_inactivas` (JSONB): actividades históricas `{grupo, labor, lugar, fecha_inicio, fecha_fin, postula_usted, postula_nombre, detalle}`.
+  Grupos y preguntas en `ACTIVIDADES_HISTORICAS` (`lib/catalogos.ts`): Púlpito, Dones, Materiales, Administrativas.
+  Los registros antiguos solo tienen `labor` + `detalle`; `normalizarInactiva` (lib/ficha.ts) los completa.
+- `barrio`, `comuna`: residencia (no existen en el CEMP; el trigger los ignora). Migración: `supabase/migracion_barrio_labores.sql`.
+- `estudiantes`, `sesiones`, `asistencias`: del Instituto retirado; se conservan pero no se usan.
 - Trigger `trg_datos_actualizados`: en cada UPDATE de `colaboradores`, si cambia un campo que también
   existe en el CEMP, pone `datos_actualizados_en = NOW()`. Ignora campos internos (`mira`, `fimlm`,
-  `dia_profecia`, `horario`, `observaciones`, `activo`, consentimiento y los propios del control CEMP).
+  `dia_profecia`, `horario`, `observaciones`, `activo`, `barrio`, `comuna`, consentimiento y los propios del control CEMP).
   Si en la misma operación cambia `cemp_fecha_registro`, no marca.
 - Nota: `schema.sql` no está al día con todas las columnas reales (p. ej. `dia_profecia`, `estudiantes.horario`).
   La base en producción es la fuente de verdad.
@@ -81,7 +84,6 @@ APIs (Route Handlers en `app/api/`, todas usan `getSupabase()` en servidor):
    - Si existe: `fusionarFicha` (lib/ficha.ts). Lo nuevo lleno reemplaza, lo vacío nunca borra,
      dones/labores/estudios/idiomas se suman, observaciones se agregan al final.
    - Si no existe: inserta un colaborador nuevo.
-   - En ambos casos `sincronizarInstituto` (lib/instituto.ts) activa/desactiva al estudiante según el don "Instituto Bíblico".
    - La solicitud queda `aprobada` con `colaborador_id`.
 5. **Rechazar**: solo cambia el estado a `rechazada`.
 
@@ -101,14 +103,15 @@ APIs (Route Handlers en `app/api/`, todas usan `getSupabase()` en servidor):
 
 - `lib/supabase.ts`: cliente único con service role. **Solo en servidor** (Route Handlers). Nunca importarlo en un componente `'use client'`.
 - `lib/auth.ts`: cookie y token de sesión.
-- `lib/catalogos.ts`: dones, labores (CEMP e internas), roles MIRA/FIMLM, horarios, documentos, niveles, estado CEMP y `fechaCorta`.
-- `lib/ficha.ts`: tipo `Ficha`, `fichaVacia`, `fichaDesdeDb`, `fichaADb`, `fusionarFicha`, `nombreCompleto`.
+- `lib/catalogos.ts`: dones, labores (todas del CEMP; "Testimonio" se unificó en Micrófono y "Fundas" se retiró),
+  actividades históricas, comunas de Itagüí, roles MIRA/FIMLM, horarios, documentos, niveles, estado CEMP y `fechaCorta`.
+- `lib/ficha.ts`: tipo `Ficha`, `fichaVacia`, `fichaDesdeDb`, `fichaADb`, `fusionarFicha`, `nombreCompleto`, `normalizarInactiva`.
 - `lib/etiquetas.ts`: `SECCIONES` / `OTROS_CAMPOS` con las etiquetas y el formato para mostrar la ficha.
 - `lib/cemp.ts`: parser de la tabla pegada del CEMP.
 - `lib/buscar.ts`: búsqueda de colaborador existente.
-- `lib/instituto.ts`: sincronización con estudiantes.
 - `lib/foto.ts`: recorte cuadrado y compresión a JPG 800×800 en el navegador.
-- `components/FormularioCemp.tsx`: formulario por pasos, modos `publico` y `admin`.
+- `components/FormularioCemp.tsx`: formulario por pasos, modos `publico` y `admin`. Incluye `ActividadHistorica`
+  (se elige la actividad y aparecen lugar, fechas inicio/fin y quién la postuló, según el grupo).
 - `components/FotoInput.tsx`: captura y subida de fotos.
 - `components/Navbar.tsx`: navegación, contador de solicitudes pendientes, salir.
 

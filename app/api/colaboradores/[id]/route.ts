@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { fichaADb, type Ficha } from '@/lib/ficha';
-import { sincronizarInstituto } from '@/lib/instituto';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,10 +25,6 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       if (error.code === '23505') return NextResponse.json({ error: 'Ya existe otro colaborador con ese documento' }, { status: 400 });
       throw error;
     }
-    await sincronizarInstituto(sb, {
-      nombre: data.nombre, cedula: data.cedula, celular: data.celular,
-      foto: data.foto, dones: data.dones ?? [], horario: data.horario,
-    });
     return NextResponse.json(data);
   } catch (e) {
     console.error(e);

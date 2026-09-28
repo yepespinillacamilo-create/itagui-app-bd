@@ -40,6 +40,9 @@ interface Colaborador {
   genero?: string | null;
   fecha_nacimiento?: string | null;
   ocupacion?: string | null;
+  direccion?: string | null;
+  barrio?: string | null;
+  comuna?: string | null;
   cemp_fecha_registro?: string | null;
   cemp_registrado_por?: string | null;
   datos_actualizados_en?: string | null;
@@ -251,6 +254,9 @@ export default function ColaboradoresPage() {
       'Cédula':            c.cedula            || '',
       'Celular':           c.celular           || '',
       'Email':             c.email             || '',
+      'Dirección':         c.direccion         || '',
+      'Barrio':            c.barrio            || '',
+      'Comuna':            c.comuna            || '',
       'Horario Culto':     c.horario           || '',
       'Dones':             c.dones?.join(', ')        || '',
       'Labores':           c.labores?.join(', ')      || '',

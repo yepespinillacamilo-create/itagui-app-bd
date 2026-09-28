@@ -3,29 +3,23 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { Users, Calendar, UserCheck, UserCog, ArrowRight, BarChart2, Shield } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Users, UserCheck, UserCog, ArrowRight, Shield, Inbox } from 'lucide-react';
 import { estadoCemp, ESTADO_CEMP_INFO, type EstadoCemp } from '@/lib/catalogos';
 
-interface Sesion {
-  id: number; fecha: string; descripcion?: string;
-  total_registros: number; total_asistieron: number;
-}
 interface Stats {
   totalColaboradores: number; imposicionManos: number; profecia: number;
-  enMira: number; enFimlm: number; ultimaSesion: Sesion | null; totalEstudiantes: number;
+  enMira: number; enFimlm: number;
 }
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({
     totalColaboradores: 0, imposicionManos: 0, profecia: 0,
-    enMira: 0, enFimlm: 0, ultimaSesion: null, totalEstudiantes: 0,
+    enMira: 0, enFimlm: 0,
   });
   const [loading, setLoading]         = useState(true);
   const [filtroHorario, setFiltroHorario] = useState('');
   const [todos, setTodos]             = useState<any[]>([]);
-  const [estudiantes, setEstudiantes] = useState<any[]>([]);
+  const [pendientes, setPendientes]   = useState(0);
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(d => {
@@ -35,27 +29,22 @@ export default function Dashboard() {
         profecia:           d.profecia           ?? 0,
         enMira:             d.enMira             ?? 0,
         enFimlm:            d.enFimlm            ?? 0,
-        ultimaSesion:       d.ultimaSesion       ?? null,
-        totalEstudiantes:   d.totalEstudiantes   ?? 0,
       });
     }).catch(console.error).finally(() => setLoading(false));
 
-    // Cargar colaboradores y estudiantes para filtro por horario
+    // Cargar colaboradores para filtro por horario
     fetch('/api/colaboradores').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setTodos(d);
     }).catch(console.error);
 
-    fetch('/api/estudiantes').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setEstudiantes(d);
+    fetch('/api/solicitudes').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setPendientes(d.length);
     }).catch(console.error);
   }, []);
 
   // Calcular stats filtradas por horario
   const lista = filtroHorario ? todos.filter((c: any) => c.horario === filtroHorario) : todos;
   const total        = filtroHorario ? lista.length : stats.totalColaboradores;
-  const totalEst     = filtroHorario
-    ? estudiantes.filter((e: any) => e.horario === filtroHorario && e.activo === 1).length
-    : stats.totalEstudiantes;
   const imposicion   = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Imposición de Manos')).length : stats.imposicionManos;
   const profeciaNum  = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Profecía')).length            : stats.profecia;
   const miraNum      = todos.length ? lista.filter((c: any) => c.es_mira  || (c.mira?.length  ?? 0) > 0).length : stats.enMira;
@@ -64,16 +53,13 @@ export default function Dashboard() {
     estado: e, info: ESTADO_CEMP_INFO[e], n: lista.filter((c: any) => estadoCemp(c) === e).length,
   }));
 
-  const pct = stats.ultimaSesion && stats.ultimaSesion.total_registros > 0
-    ? Math.round((stats.ultimaSesion.total_asistieron / stats.ultimaSesion.total_registros) * 100) : 0;
-
   const cards = [
     { icon: Users,     valor: total,       label: 'Colaboradores',        iconBg: '#EFF6FF', iconColor: '#2563EB', href: `/colaboradores` },
     { icon: UserCheck, valor: imposicion,  label: 'Imposición de manos',  iconBg: '#FEF9EC', iconColor: '#C8A24A', href: '/colaboradores' },
     { icon: UserCog,   valor: profeciaNum, label: 'Profecía',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
     { icon: Shield,    valor: miraNum,     label: 'En MIRA',              iconBg: '#EFF6FF', iconColor: '#2563EB', href: '/colaboradores' },
     { icon: Shield,    valor: fimlmNum,    label: 'En FIMLM',             iconBg: '#F0FDF4', iconColor: '#16A34A', href: '/colaboradores' },
-    { icon: BarChart2, valor: totalEst,               label: 'Estudiantes Instituto', iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/instituto' },
+    { icon: Inbox,     valor: pendientes,  label: 'Solicitudes por revisar', iconBg: '#FFF7ED', iconColor: '#EA580C', href: '/solicitudes' },
   ];
 
   return (
@@ -154,47 +140,18 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Última sesión */}
-        {!loading && stats.ultimaSesion && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-1 h-5 rounded-full" style={{ backgroundColor: '#C8A24A' }} />
-              <h3 className="font-semibold" style={{ color: '#1F2937' }}>Última sesión del Instituto</h3>
-            </div>
-            <div className="flex flex-wrap gap-4 items-start">
-              <div className="flex-1 min-w-0">
-                <div className="text-lg font-bold" style={{ color: '#1F2937' }}>
-                  {format(new Date(stats.ultimaSesion.fecha + 'T00:00:00'), "d 'de' MMMM yyyy", { locale: es })}
-                </div>
-                {stats.ultimaSesion.descripcion && (
-                  <div className="text-sm mt-0.5" style={{ color: '#6B7280' }}>{stats.ultimaSesion.descripcion}</div>
-                )}
-              </div>
-              <div className="flex gap-5 text-center flex-shrink-0">
-                <div><div className="text-2xl font-bold" style={{ color: '#16A34A' }}>{stats.ultimaSesion.total_asistieron}</div><div className="text-xs" style={{ color: '#6B7280' }}>Asistieron</div></div>
-                <div><div className="text-2xl font-bold" style={{ color: '#DC2626' }}>{stats.ultimaSesion.total_registros - stats.ultimaSesion.total_asistieron}</div><div className="text-xs" style={{ color: '#6B7280' }}>Ausentes</div></div>
-                <div><div className="text-2xl font-bold" style={{ color: '#2563EB' }}>{pct}%</div><div className="text-xs" style={{ color: '#6B7280' }}>Asistencia</div></div>
-              </div>
-            </div>
-            <div className="mt-5 rounded-full h-2.5 overflow-hidden" style={{ backgroundColor: '#F3F4F6' }}>
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${pct}%`, background: pct >= 75 ? 'linear-gradient(90deg,#C8A24A,#F0DFA0)' : pct >= 50 ? 'linear-gradient(90deg,#2563EB,#60A5FA)' : 'linear-gradient(90deg,#DC2626,#FCA5A5)' }} />
-            </div>
-          </div>
-        )}
-
         {/* Accesos rápidos */}
         <div className="grid md:grid-cols-2 gap-5">
-          <Link href="/instituto"
+          <Link href="/solicitudes"
             className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-0.5">
             <div className="flex items-center justify-between mb-5">
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#FFF7ED' }}>
-                <Calendar size={26} style={{ color: '#EA580C' }} />
+                <Inbox size={26} style={{ color: '#EA580C' }} />
               </div>
               <ArrowRight size={18} style={{ color: '#9CA3AF' }} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <h2 className="text-xl font-bold mb-1" style={{ color: '#1F2937' }}>Asistencia Instituto</h2>
-            <p className="text-sm" style={{ color: '#6B7280' }}>Registrar asistencia del Instituto Bíblico</p>
+            <h2 className="text-xl font-bold mb-1" style={{ color: '#1F2937' }}>Solicitudes</h2>
+            <p className="text-sm" style={{ color: '#6B7280' }}>Revisar y aprobar lo que llega del formulario público</p>
           </Link>
 
           <Link href="/colaboradores"

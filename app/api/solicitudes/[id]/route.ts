@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { buscarExistente } from '@/lib/buscar';
 import { fusionarFicha, type FichaDb } from '@/lib/ficha';
-import { sincronizarInstituto } from '@/lib/instituto';
 
 // Aprobar o rechazar una solicitud del formulario.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -43,10 +42,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       guardado = data;
     }
 
-    await sincronizarInstituto(sb, {
-      nombre: guardado.nombre, cedula: guardado.cedula, celular: guardado.celular,
-      foto: guardado.foto, dones: guardado.dones ?? [], horario: guardado.horario,
-    });
     await sb.from('solicitudes').update({
       estado: 'aprobada', colaborador_id: guardado.id, revisado_en: new Date().toISOString(),
     }).eq('id', sol.id);

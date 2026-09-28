@@ -22,31 +22,12 @@ export async function GET() {
       if (fimlm.length > 0)                      enFimlm++;
     }
 
-    const { data: estData } = await sb.from('estudiantes').select('activo');
-    const totalEstudiantes = (estData ?? []).filter((e: any) => e.activo === 1).length;
-
-    const { data: ultimaSesionData } = await sb
-      .from('sesiones').select('id, fecha, descripcion')
-      .order('fecha', { ascending: false }).limit(1);
-
-    let ultimaSesion = null;
-    if (ultimaSesionData?.length) {
-      const s = ultimaSesionData[0];
-      const { data: asistencias } = await sb
-        .from('asistencias').select('asistio').eq('sesion_id', s.id);
-      const total_registros  = asistencias?.length ?? 0;
-      const total_asistieron = asistencias?.filter((a: { asistio: number }) => a.asistio === 1).length ?? 0;
-      ultimaSesion = { ...s, total_registros, total_asistieron };
-    }
-
     return NextResponse.json({
       totalColaboradores,
       imposicionManos,
       profecia,
       enMira,
       enFimlm,
-      totalEstudiantes: totalEstudiantes ?? 0,
-      ultimaSesion,
     });
   } catch (error) {
     console.error(error);

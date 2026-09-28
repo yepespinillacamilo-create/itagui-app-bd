@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, Calendar, BarChart2, Menu, X, Heart, ChevronLeft, Inbox, LogOut } from 'lucide-react';
+import { BookOpen, BarChart2, Menu, X, Heart, ChevronLeft, Inbox, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const links = [
   { href: '/',              label: 'Inicio',        icon: BarChart2 },
   { href: '/colaboradores', label: 'Colaboradores', icon: Heart     },
-  { href: '/instituto',     label: 'Instituto',     icon: Calendar  },
   { href: '/solicitudes',   label: 'Solicitudes',   icon: Inbox     },
 ];
 

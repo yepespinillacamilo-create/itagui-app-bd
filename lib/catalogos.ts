@@ -2,7 +2,7 @@
 // Los marcados como CEMP coinciden exactamente con la app oficial de la Iglesia.
 
 export const DONES_CEMP = ['Echar fuera demonios', 'Imposición de Manos', 'Profecía', 'Sanidad'];
-export const DONES_INTERNOS = ['Pastorado', 'Instituto Bíblico', 'Introducción', 'Predicación'];
+export const DONES_INTERNOS = ['Pastorado', 'Introducción', 'Predicación'];
 export const DONES = [...DONES_CEMP, ...DONES_INTERNOS];
 
 export const LABORES_CEMP = [
@@ -11,8 +11,25 @@ export const LABORES_CEMP = [
   'Logística (Vigilancia)', 'Micrófono', 'Ofrenda (Grupo 1 - Recolector)', 'Ofrenda (Grupo 2)',
   'Parqueaderos', 'Protocolo de matrimonios', 'Sonido', 'Traducciones', 'Video',
 ];
-export const LABORES_INTERNAS = ['Testimonio', 'Fundas'];
-export const LABORES = [...LABORES_CEMP, ...LABORES_INTERNAS];
+export const LABORES = LABORES_CEMP;
+
+// Actividades históricas (labores y dones que ya no ejerce o que ejerció en otros templos), igual que en el CEMP.
+// Según el grupo cambian las preguntas: dónde la realizó y quién la postuló.
+export interface GrupoActividad { grupo: string; opciones: string[]; lugar: string; postula: string }
+export const ACTIVIDADES_HISTORICAS: GrupoActividad[] = [
+  { grupo: 'Púlpito', lugar: 'Zona (país)', postula: 'Nombre de quien lo postula',
+    opciones: ['Celebra Matrimonios', 'Guiador o introductor de culto', 'Miembro de la junta directiva', 'Ministra Bautismos',
+      'Pastor de apoyo', 'Pastor encargado', 'Pastor encargado de culto', 'Supervisor', 'Visitador'] },
+  { grupo: 'Dones', lugar: 'Sitio labor', postula: 'Nombre del Pastor que le indicó iniciar',
+    opciones: DONES_CEMP },
+  { grupo: 'Materiales', lugar: 'Sitio labor', postula: 'Nombre del Pastor que le indicó iniciar la labor',
+    opciones: LABORES_CEMP },
+  { grupo: 'Administrativas', lugar: 'Zona (país)', postula: 'Nombre de quien lo postula',
+    opciones: ['Equipo Administrativo Departamental', 'Equipo Administrativo Municipal'] },
+];
+export function grupoDeActividad(actividad: string): GrupoActividad | undefined {
+  return ACTIVIDADES_HISTORICAS.find((g) => g.opciones.includes(actividad));
+}
 
 export const MIRA_ROLES = ['Del. Político', 'Del. Comunicaciones', 'InfoMIRA', 'Del. Electoral', 'Del. Ideológico'];
 export const FIMLM_ROLES = ['Cord. Logística', 'Coord. Gestión', 'Cord. Adm y Fcro', 'Campus', 'Otra'];
@@ -23,6 +40,7 @@ export const TIPOS_DOCUMENTO = ['Cédula de ciudadanía', 'Cédula de extranjer�
 export const NIVELES_EDUCATIVOS = ['Primaria', 'Bachillerato', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado'];
 export const NIVELES_IDIOMA = ['Nativo', 'Básico', 'Intermedio', 'Avanzado'];
 export const IGLESIA_ITAGUI = 'IG68 · Itagüí · Calle 51 # 40 - 159 Barrio La Cruz';
+export const COMUNAS_ITAGUI = ['Comuna 1', 'Comuna 2', 'Comuna 3', 'Comuna 4', 'Comuna 5', 'Comuna 6', 'Corregimiento El Manzanillo'];
 
 // ── Estado frente al CEMP ────────────────────────────────────
 export type EstadoCemp = 'sin' | 'aldia' | 'desactualizado';

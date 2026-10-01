@@ -37,7 +37,7 @@ Páginas:
 | Ruta | Acceso | Qué hace |
 |---|---|---|
 | `/` | admin | Dashboard: estadísticas (`/api/stats`), estado CEMP y solicitudes por revisar |
-| `/colaboradores` | admin | Lista, filtros, exportar, botón **CEMP** (pegar tabla del CEMP) |
+| `/colaboradores` | admin | Lista, filtros (culto: Todos / 7:00 AM / 6:30 PM / **Sin culto**), exportar, botón **CEMP** |
 | `/colaboradores/[id]` | admin | Ficha completa en el orden del CEMP + estado CEMP + marcar/desmarcar registro |
 | `/colaboradores/[id]/editar` | admin | Edición con `FormularioCemp` en modo `admin` |
 | `/solicitudes` | admin | Bandeja de solicitudes pendientes del formulario público (aprobar / rechazar) |
@@ -114,6 +114,16 @@ APIs (Route Handlers en `app/api/`, todas usan `getSupabase()` en servidor):
   (se elige la actividad y aparecen lugar, fechas inicio/fin y quién la postuló, según el grupo).
 - `components/FotoInput.tsx`: captura y subida de fotos.
 - `components/Navbar.tsx`: navegación, contador de solicitudes pendientes, salir.
+
+## Culto (`horario`)
+
+- Valores: `'7:00 AM'`, `'6:30 PM'` o `NULL` = sin culto asociado (los importados del CEMP llegan así).
+- Filtrar siempre con `coincideCulto` / `FILTROS_CULTO` (`lib/catalogos.ts`). Nunca forzar `'7:00 AM'` por defecto al editar.
+
+## Datos personales
+
+- El repo de GitHub es **público**: nunca guardar en él archivos con datos de colaboradores
+  (cédulas, celulares, correos, salud). Los SQL de carga de datos se entregan fuera del repo.
 
 ## Convenciones para mejoras
 

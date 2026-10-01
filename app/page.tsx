@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { Users, UserCheck, UserCog, ArrowRight, Shield, Inbox } from 'lucide-react';
-import { estadoCemp, ESTADO_CEMP_INFO, type EstadoCemp } from '@/lib/catalogos';
+import { estadoCemp, ESTADO_CEMP_INFO, type EstadoCemp, FILTROS_CULTO, coincideCulto } from '@/lib/catalogos';
 
 interface Stats {
   totalColaboradores: number; imposicionManos: number; profecia: number;
@@ -43,7 +43,7 @@ export default function Dashboard() {
   }, []);
 
   // Calcular stats filtradas por horario
-  const lista = filtroHorario ? todos.filter((c: any) => c.horario === filtroHorario) : todos;
+  const lista = filtroHorario ? todos.filter((c: any) => coincideCulto(c.horario, filtroHorario)) : todos;
   const total        = filtroHorario ? lista.length : stats.totalColaboradores;
   const imposicion   = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Imposición de Manos')).length : stats.imposicionManos;
   const profeciaNum  = filtroHorario ? lista.filter((c: any) => c.dones?.includes('Profecía')).length            : stats.profecia;
@@ -82,14 +82,10 @@ export default function Dashboard() {
 
         {/* Selector de horario en dashboard */}
         <div className="flex gap-2 mb-6 p-1 rounded-2xl" style={{ backgroundColor: '#E5E7EB' }}>
-          {[
-            { val: '',        label: 'Todos los cultos' },
-            { val: '7:00 AM', label: '☀️  7:00 AM' },
-            { val: '6:30 PM', label: '🌙  6:30 PM' },
-          ].map(({ val, label }) => (
+          {FILTROS_CULTO.map(({ val, label }) => (
             <button key={val}
               onClick={() => setFiltroHorario(val)}
-              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              className="flex-1 py-2 px-1 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap"
               style={filtroHorario === val
                 ? { backgroundColor: '#1E3A8A', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
                 : { backgroundColor: 'transparent', color: '#6B7280' }}>

@@ -9,7 +9,7 @@ import {
   Shield, Heart, Music, ChevronDown, ChevronUp,
 } from 'lucide-react';
 // ── Catálogos compartidos (coinciden con el CEMP) ──────────
-import { DONES, LABORES, MIRA_ROLES, FIMLM_ROLES, DIAS_PROFECIA, ESTADO_CEMP_INFO, estadoCemp, fechaCorta, type EstadoCemp } from '@/lib/catalogos';
+import { DONES, LABORES, MIRA_ROLES, FIMLM_ROLES, DIAS_PROFECIA, ESTADO_CEMP_INFO, estadoCemp, fechaCorta, type EstadoCemp, FILTROS_CULTO, SIN_CULTO, coincideCulto } from '@/lib/catalogos';
 import FotoInput from '@/components/FotoInput';
 import Link from 'next/link';
 import { ClipboardPaste, FileText } from 'lucide-react';
@@ -146,7 +146,7 @@ export default function ColaboradoresPage() {
   const colaboradores = (() => {
     let lista = todos;
     // Filtro principal por horario del culto
-    if (filtroHorario) lista = lista.filter((c) => c.horario === filtroHorario);
+    if (filtroHorario) lista = lista.filter((c) => coincideCulto(c.horario, filtroHorario));
     if (buscar.trim()) {
       const b = buscar.toLowerCase();
       lista = lista.filter((c) =>
@@ -189,7 +189,7 @@ export default function ColaboradoresPage() {
       cedula:         col.cedula          || '',
       celular:        col.celular         || '',
       email:          col.email           || '',
-      horario:        col.horario         || '7:00 AM',
+      horario:        col.horario         || '',
       foto:           col.foto            || '',
       dones:          Array.isArray(col.dones)   ? col.dones   : [],
       labores:        Array.isArray(col.labores) ? col.labores : [],
@@ -248,7 +248,7 @@ export default function ColaboradoresPage() {
   // ── Sub-filtros según tab activo ─────────────────────────
   // ── Exportar a Excel ────────────────────────────────────────
   function exportarExcel() {
-    const titulo = filtroHorario ? `Colaboradores ${filtroHorario}` : 'Todos los Colaboradores';
+    const titulo = filtroHorario === SIN_CULTO ? 'Colaboradores sin culto' : filtroHorario ? `Colaboradores ${filtroHorario}` : 'Todos los Colaboradores';
     const rows = colaboradores.map((c) => ({
       'Nombre':            c.nombre,
       'Cédula':            c.cedula            || '',
@@ -308,14 +308,10 @@ export default function ColaboradoresPage() {
 
         {/* Selector principal de horario */}
         <div className="flex gap-2 mb-4 p-1 rounded-2xl" style={{ backgroundColor: '#E5E7EB' }}>
-          {[
-            { val: '',        label: 'Todos los cultos' },
-            { val: '7:00 AM', label: '☀️  7:00 AM' },
-            { val: '6:30 PM', label: '🌙  6:30 PM' },
-          ].map(({ val, label }) => (
+          {FILTROS_CULTO.map(({ val, label }) => (
             <button key={val}
               onClick={() => setFiltroHorario(val)}
-              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              className="flex-1 py-2 px-1 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap"
               style={filtroHorario === val
                 ? { backgroundColor: '#1E3A8A', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
                 : { backgroundColor: 'transparent', color: '#6B7280' }}>
@@ -331,7 +327,7 @@ export default function ColaboradoresPage() {
             <p className="text-sm" style={{ color: '#6B7280' }}>
               {cargando ? '...' : `${colaboradores.length} resultado${colaboradores.length !== 1 ? 's' : ''}`}
               {filtroHorario && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>Culto {filtroHorario}</span>}
+                style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>{filtroHorario === SIN_CULTO ? 'Sin culto' : `Culto ${filtroHorario}`}</span>}
             </p>
           </div>
           <div className="flex gap-2 flex-wrap justify-end">
@@ -403,7 +399,7 @@ export default function ColaboradoresPage() {
                 style={filtroValor === f
                   ? { backgroundColor: '#C8A24A', color: '#fff', borderColor: '#C8A24A' }
                   : { backgroundColor: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
-                {filtroTab === 'cemp' ? `${ESTADOS_CEMP.find((e) => e.val === f)?.label} (${todos.filter((c) => (!filtroHorario || c.horario === filtroHorario) && estadoCemp(c) === f).length})` : f}
+                {filtroTab === 'cemp' ? `${ESTADOS_CEMP.find((e) => e.val === f)?.label} (${todos.filter((c) => coincideCulto(c.horario, filtroHorario) && estadoCemp(c) === f).length})` : f}
               </button>
             ))}
           </div>
@@ -634,6 +630,7 @@ export default function ColaboradoresPage() {
                       onChange={(e) => setForm((f) => ({ ...f, horario: e.target.value }))}>
                       <option value="7:00 AM">7:00 AM — Mañana</option>
                       <option value="6:30 PM">6:30 PM — Tarde/Noche</option>
+                      <option value="">Sin culto</option>
                     </select>
                   </div>
                 </div>

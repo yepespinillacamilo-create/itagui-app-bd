@@ -425,13 +425,13 @@ export default function FormularioCemp({ inicial, modo, onEnviar, textoEnviar = 
                   <input className={inputCls} style={inputStyle} value={f.iglesia_actual} onChange={(e) => set('iglesia_actual', e.target.value)} />
                 </Campo>
                 <Pregunta texto={`Culto al que asiste normalmente${modo === 'publico' ? ' *' : ''}`}>
-                  <div className="grid grid-cols-2 gap-3 max-w-sm">
-                    {HORARIOS.map((h) => (
-                      <button key={h} type="button" onClick={() => set('horario', h)}
+                  <div className={`grid ${modo === 'admin' ? 'grid-cols-3 max-w-md' : 'grid-cols-2 max-w-sm'} gap-3`}>
+                    {(modo === 'admin' ? [...HORARIOS, ''] : HORARIOS).map((h) => (
+                      <button key={h || 'sin'} type="button" onClick={() => set('horario', h)}
                         className="py-3 rounded-xl border text-sm font-semibold transition-colors"
                         style={f.horario === h ? { borderColor: '#1E3A8A', backgroundColor: '#EFF6FF', color: '#1E3A8A' }
                           : { borderColor: '#D1D5DB', color: '#4B5563' }}>
-                        {h === '7:00 AM' ? '☀️ 7:00 AM' : '🌙 6:30 PM'}
+                        {h === '7:00 AM' ? '☀️ 7:00 AM' : h === '6:30 PM' ? '🌙 6:30 PM' : 'Sin culto'}
                       </button>
                     ))}
                   </div>

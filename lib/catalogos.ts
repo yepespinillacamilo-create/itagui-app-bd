@@ -36,6 +36,20 @@ export const FIMLM_ROLES = ['Cord. Logística', 'Coord. Gestión', 'Cord. Adm y 
 export const DIAS_PROFECIA = ['Lunes', 'Miércoles', 'Viernes', 'Según disponibilidad'];
 export const HORARIOS = ['7:00 AM', '6:30 PM'];
 
+// Filtro por culto: '' = todos, 'sin' = sin culto asociado (p. ej. importados del CEMP), o un horario.
+export const SIN_CULTO = 'sin';
+export const FILTROS_CULTO = [
+  { val: '',        label: 'Todos' },
+  { val: '7:00 AM', label: '☀️ 7:00 AM' },
+  { val: '6:30 PM', label: '🌙 6:30 PM' },
+  { val: SIN_CULTO, label: 'Sin culto' },
+];
+export function coincideCulto(horario: string | null | undefined, filtro: string) {
+  if (!filtro) return true;
+  if (filtro === SIN_CULTO) return !horario;
+  return horario === filtro;
+}
+
 export const TIPOS_DOCUMENTO = ['Cédula de ciudadanía', 'Cédula de extranjería', 'Pasaporte', 'Tarjeta de identidad', 'PPT / PEP'];
 export const NIVELES_EDUCATIVOS = ['Primaria', 'Bachillerato', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado'];
 export const NIVELES_IDIOMA = ['Nativo', 'Básico', 'Intermedio', 'Avanzado'];
